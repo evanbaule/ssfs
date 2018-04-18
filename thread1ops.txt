@@ -1,0 +1,6 @@
+CAT a.txt
+CAT a.txt
+CAT a.txt
+CAT a.txt
+CAT a.txt
+CAT a.txt
