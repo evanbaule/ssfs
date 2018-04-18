@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 #include <fstream>
-#include  <pthread.h>
+#include <pthread.h>
 using namespace std;
 
 /* convince me not to do this */
@@ -14,8 +14,8 @@ void*
 process_ops(void* file_arg)
 {
 	//string op_file_name = "thread1ops.txt";
-	char* op_file_name = (char*) file_arg; //currently broken af
-	cout << "Thread created:\t" << (char)file_arg << endl;
+  char* op_file_name = *(char**)file_arg;
+	cout << "Thread created:\t" << op_file_name << endl;
 
 	/* Parsing */
 	ifstream input_stream(op_file_name);
@@ -46,7 +46,7 @@ int main(int argc, char const *argv[])
 			//this is ugly sorry
 			case 3:
 			{
-				int rc1 = pthread_create(&op_thread1, NULL, process_ops, &argv[2]);
+				int rc1 = pthread_create(&op_thread1, NULL, process_ops, (void*)argv[2]);
 				/* For testing
 				ops.push_back(argv[2]);
 				*/
@@ -54,8 +54,8 @@ int main(int argc, char const *argv[])
 			}
 			case 4:
 			{
-				int rc1 = pthread_create(&op_thread1, NULL, process_ops, &argv[2]);
-				int rc2 = pthread_create(&op_thread2, NULL, process_ops, &argv[3]);
+				int rc1 = pthread_create(&op_thread1, NULL, process_ops, (void*)argv[2]);
+				int rc2 = pthread_create(&op_thread2, NULL, process_ops, (void*)argv[3]);
 
 				/* For testing 
 				ops.push_back(argv[2]);
@@ -65,9 +65,9 @@ int main(int argc, char const *argv[])
 			}
 			case 5:
 			{
-				int rc1 = pthread_create(&op_thread1, NULL, process_ops, &argv[2]);
-				int rc2 = pthread_create(&op_thread2, NULL, process_ops, &argv[3]);
-				int rc3 = pthread_create(&op_thread3, NULL, process_ops, &argv[4]);
+				int rc1 = pthread_create(&op_thread1, NULL, process_ops, (void*)argv[2]);
+				int rc2 = pthread_create(&op_thread2, NULL, process_ops, (void*)argv[3]);
+				int rc3 = pthread_create(&op_thread3, NULL, process_ops, (void*)argv[4]);
 
 				/* For testing 
 				ops.push_back(argv[2]);
@@ -78,10 +78,10 @@ int main(int argc, char const *argv[])
 			}
 			case 6:
 			{
-				int rc1 = pthread_create(&op_thread1, NULL, process_ops, &argv[2]);
-				int rc2 = pthread_create(&op_thread2, NULL, process_ops, &argv[3]);
-				int rc3 = pthread_create(&op_thread3, NULL, process_ops, &argv[4]); 
-				int rc4 = pthread_create(&op_thread4, NULL, process_ops, &argv[5]); 
+				int rc1 = pthread_create(&op_thread1, NULL, process_ops, (void*)argv[2]);
+				int rc2 = pthread_create(&op_thread2, NULL, process_ops, (void*)argv[3]);
+				int rc3 = pthread_create(&op_thread3, NULL, process_ops, (void*)argv[4]); 
+				int rc4 = pthread_create(&op_thread4, NULL, process_ops, (void*)argv[5]); 
 
 				/* For testing 
 				ops.push_back(argv[2]); 
