@@ -1,5 +1,23 @@
 #include "scheduler.hpp"
 
+int
+getBitMapSize()
+{
+  return (getNumBlocks()/getBlockSize());
+}
+
+int getFreeBlock()
+{
+  char* disk = getDisk();
+  uint byteOffs =  getBlockSize() + 256*getBlockSize();
+  for(unsigned int i = byteOffs; i < byteOffs + getBitMapSize(); i++)
+  {
+    if(disk[i] == 0)
+      return i;
+  }
+  cerr << "disk is fucking full af" << endl;
+}
+
 int GETEMPTYINODE()
 {
   char found = 0;
@@ -50,7 +68,6 @@ void CREATE(char* filename)
   strcpy(inod->fileName, filename);
 }
 
-
 void IMPORT(char* ssfsFile, char* unixFilename){
   char* DISK = getDisk();
   uint block_size = getBlockSize();
@@ -63,7 +80,7 @@ void IMPORT(char* ssfsFile, char* unixFilename){
   ssize_t bytes_read = read(fd, buffer, max_file_size);
 
   //Get size of unix file to check return from read got whole file
-  //idec if this works or not
+  /*idec if this works or not
   struct stat sb; 
   if (stat(unixFilename, &sb) == -1) {
     perror("stat fucked");
@@ -74,8 +91,16 @@ void IMPORT(char* ssfsFile, char* unixFilename){
     cerr << "read() syscall is fucked up and didnt read the correct amt of bits" << endl;
     return;
   }
+  */
 
-  //
+  inode* inod = GETINODE(ssfsFile);
+  if(inod == -1)
+  {
+    inod = GETEMPTYINODE();
+  }
+
+  
+  
 
 
 }
