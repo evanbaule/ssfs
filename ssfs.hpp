@@ -48,4 +48,6 @@ void READ(string fileName, uint start, uint num, void* buffer);
 
 void SHUTDOWN(void* buffer);
 
+//am i gey
+
 #endif
