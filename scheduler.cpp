@@ -175,6 +175,7 @@ void WRITE(char* fileName, char c, uint start, uint num){}
 void READ(char* fileName, uint start, uint num)
 {
   char* bytes = new char[num];
+  inode* inod = getInodeFromIndex(getInode(fileName));
 }
 
 bool shut=0;
