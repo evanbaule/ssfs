@@ -1,5 +1,10 @@
 #include "scheduler.hpp"
 
+<<<<<<< HEAD
+int getEmptyInode()
+||||||| merged common ancestors
+int GETEMPTYINODE()
+=======
 int
 getBitMapSize()
 {
@@ -19,6 +24,7 @@ int getFreeBlock()
 }
 
 int GETEMPTYINODE()
+>>>>>>> fb2563fd3b7078203bcdd370524e5ce48b89b6a8
 {
   char found = 0;
   int i;
