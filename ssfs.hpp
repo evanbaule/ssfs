@@ -25,8 +25,6 @@ enum tags {
 	shutdown_tag,
 };
 
-void fuck_you(void* test_func);
-
 typedef struct {
 	tags tag; //Maps to disk operation
 	string fname1; //<SSFS File Name>
@@ -49,7 +47,5 @@ void WRITE(string fileName, char c, uint start, uint num, void* buffer);
 void READ(string fileName, uint start, uint num, void* buffer);
 
 void SHUTDOWN(void* buffer);
-
-//am i gey
 
 #endif
