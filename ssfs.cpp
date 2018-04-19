@@ -151,6 +151,6 @@ int main(int argc, char const *argv[])
       }
 
     /*scheduler thread*/
-    pthread_create(&SCH_thread, NULL, SCH_run, requests);
+    pthread_create(&SCH_thread, NULL, SCH_run, (void*) requests);
 	}
 }

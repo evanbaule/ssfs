@@ -9,7 +9,6 @@ using namespace std;
 
 pthread_t SCH_thread;
 
-
 void CREATE(string filename);
 
 void IMPORT(string ssfsFile, string unixFilename);
@@ -24,6 +23,6 @@ void READ(string fileName, uint start, uint num);
 
 void SHUTDOWN();
 
-void SCH_run(void* vec);
+void* SCH_run(void* vec);
 
 #endif
