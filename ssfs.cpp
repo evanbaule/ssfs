@@ -1,14 +1,9 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include <iostream>
-#include <string>
-#include <vector>
-#include <fstream>
-#include <pthread.h>
+#include "ssfs.hpp"
+
 using namespace std;
 
 /* convince me not to do this */
-pthread_t op_thread1, op_thread2, op_thread3, op_thread4;
+pthread_t op_thread[4];
 
 void*
 process_ops(void* file_arg)
@@ -22,14 +17,119 @@ process_ops(void* file_arg)
 	string linebuff;
 	while(getline(input_stream, linebuff))
 	{
-		cout << linebuff << endl;
+    stringstream ss(linebuff);
+    string command;
+    ss >> command;
+
+    request r;
+    if(command == "CREATE")
+      {
+        Tag tag = create_tag;
+        string fileName;
+        ss >> fileName;
+
+        r.tag = tag;
+        r.fname1 = fileName;
+      }
+    else if (command == "IMPORT")
+      {
+        Tag tag = import_tag;
+        string file1;
+        string file2;
+        ss >> file1;
+        ss >> file2;
+
+        r.tag = tag;
+        r.fname1 = file1;
+        r.fname2 = file2;
+      }
+    else if (command == "CAT")
+      {
+        Tag tag = cat_tag;
+        string file1;
+        ss >> file1;
+
+        r.tag = tag;
+        r.fname1 = file1;
+      }
+    else if (command == "DELETE")
+      {
+        Tag tag = delete_tag;
+        string file1;
+        ss >> file1;
+
+        r.tag = tag;
+        r.fname1 = file1;
+      }
+    else if (command == "WRITE")
+      {
+        Tag tag = write_tag;
+        string file1;
+        char c;
+        uint start;
+        uint num;
+        ss >> file1;
+        ss >> c;
+        ss >> start;
+        ss >> num;
+
+        r.tag = tag;
+        r.fname1 = file1;
+        r.c = c;
+        r.start_byte = start;
+        r.num_bytes = num;
+      }
+    else if (command == "READ")
+      {
+        Tag tag = read_tag;
+        string file1;
+        uint start;
+        uint num;
+
+        ss >> file1;
+        ss >> start;
+        ss >> num;
+
+        r.tag = tag;
+        r.fname1 = file1;
+        r.start_byte = start;
+        r.num_bytes = num;
+      }
+    else if (command == "LIST")
+      {
+        Tag tag = list_tag;
+
+        r.tag = tag;
+      }
+    else if (command == "SHUTDOWN")
+      {
+        Tag tag = shutdown_tag;
+
+        r.tag = tag;
+      }
+
+    pthread_mutex_lock(&REQUESTS_LOCK);
+    requests->push_back(r);
+    pthread_mutex_unlock(&REQUESTS_LOCK);
+
 	}
 	return NULL;
 }
 
 int main(int argc, char const *argv[])
 {
-	/* Parsing terminal inputs */
+  /*Read all bytes of the DISK file into the DISK variable*/
+  {
+    ifstream ifs("DISK", ios::binary|ios::ate);
+    ifstream::pos_type pos = ifs.tellg();
+
+    DISK = new char[pos];
+
+    ifs.seekg(0, ios::beg);
+    ifs.read(DISK, pos);
+  }
+
+  /* Parsing terminal inputs */
 	vector<string> ops;
 	if(argc > 2)
 	{
@@ -40,66 +140,17 @@ int main(int argc, char const *argv[])
 			exit(EXIT_FAILURE);
 		}
 		cout << "argc:\t" << argc << endl;
-		/* Creates n pthreads and passes in the appropriate file names to the worker func */
-		switch(argc)
-		{
-			//this is ugly sorry
-			case 3:
-			{
-				int rc1 = pthread_create(&op_thread1, NULL, process_ops, (void*)argv[2]);
-				/* For testing
-				ops.push_back(argv[2]);
-				*/
-				break;
-			}
-			case 4:
-			{
-				int rc1 = pthread_create(&op_thread1, NULL, process_ops, (void*)argv[2]);
-				int rc2 = pthread_create(&op_thread2, NULL, process_ops, (void*)argv[3]);
-
-				/* For testing 
-				ops.push_back(argv[2]);
-				ops.push_back(argv[3]);
-				*/
-				break;
-			}
-			case 5:
-			{
-				int rc1 = pthread_create(&op_thread1, NULL, process_ops, (void*)argv[2]);
-				int rc2 = pthread_create(&op_thread2, NULL, process_ops, (void*)argv[3]);
-				int rc3 = pthread_create(&op_thread3, NULL, process_ops, (void*)argv[4]);
-
-				/* For testing 
-				ops.push_back(argv[2]);
-				ops.push_back(argv[3]);
-				ops.push_back(argv[4]);
-				*/
-				break;
-			}
-			case 6:
-			{
-				int rc1 = pthread_create(&op_thread1, NULL, process_ops, (void*)argv[2]);
-				int rc2 = pthread_create(&op_thread2, NULL, process_ops, (void*)argv[3]);
-				int rc3 = pthread_create(&op_thread3, NULL, process_ops, (void*)argv[4]); 
-				int rc4 = pthread_create(&op_thread4, NULL, process_ops, (void*)argv[5]); 
-
-				/* For testing 
-				ops.push_back(argv[2]); 
-				ops.push_back(argv[3]);
-				ops.push_back(argv[4]);
-				ops.push_back(argv[5]);
-				*/
-				break;
-			}
-				
-		}
 		/*
-		for(int i = 0; i < ops.size(); i++)
-		{
-			cout << "ARG:\t" << ops[i] << endl;
-		}
-		*/
+      Creates n pthreads and passes in the appropriate file names to the worker func
+      changed ur giant shit fest to 3 lines u baboon
+     */
+
+    for(int i = 2; i < argc;i++)
+      {
+        pthread_create(&op_thread[i-2], NULL, process_ops, (void*)argv[i]);
+      }
+
+    /*scheduler thread*/
+    pthread_create(&SCH_thread, NULL, SCH_run, requests);
 	}
 }
-
-

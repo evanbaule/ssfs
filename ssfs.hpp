@@ -1,10 +1,27 @@
 #ifndef SSFS_HPP
-#def SSFS_HPP
+#define SSFS_HPP
 
-#def uint unsigned int
-
+#include <stdio.h>
 #include <iostream>
 #include <string>
+#include <vector>
+#include <fstream>
+#include <pthread.h>
+#include <sstream>
+
+#include "scheduler.hpp"
+
+using namespace std;
+
+typedef unsigned int uint;
+
+/*byte array of the disk in memory*/
+char* DISK;
+
+/*Any access to the DISK array should be locked by this*/
+pthread_mutex_t DISK_LOCK = PTHREAD_MUTEX_INITIALIZER;
+
+pthread_mutex_t REQUESTS_LOCK = PTHREAD_MUTEX_INITIALIZER;
 
 typedef struct {
   string fileName; // Max 32 chars
@@ -14,7 +31,7 @@ typedef struct {
   uint doubleIndirect;
 } inode;
 
-enum tags {
+enum Tag {
 	create_tag,
 	import_tag,
 	cat_tag,
@@ -26,7 +43,7 @@ enum tags {
 };
 
 typedef struct {
-	tags tag; //Maps to disk operation
+	Tag tag; //Maps to disk operation
 	string fname1; //<SSFS File Name>
 	string fname2; //<Unix File Name>
 	char c; //<char>
@@ -34,18 +51,7 @@ typedef struct {
 	uint num_bytes; //<num bytes>
 } request;
 
-void CREATE(string filename, void* buffer);
+vector<request>* requests;
 
-void IMPORT(string ssfs, string unix, void* buffer);
-
-void CAT(string ssfs, void* buffer);
-
-void DELETE(string fileName, void* buffer);
-
-void WRITE(string fileName, char c, uint start, uint num, void* buffer);
-
-void READ(string fileName, uint start, uint num, void* buffer);
-
-void SHUTDOWN(void* buffer);
 
 #endif
