@@ -14,6 +14,7 @@ typedef struct {
   uint doubleIndirect;
 } inode;
 
+<<<<<<< HEAD
 enum tags {
 	create_tag,
 	import_tag,
@@ -34,6 +35,7 @@ typedef struct {
 	uint num_bytes; //<num bytes>
 } request;
 
+=======
 void CREATE(string filename, void* buffer);
 
 void IMPORT(string ssfs, string unix, void* buffer);
@@ -47,5 +49,6 @@ void WRITE(string fileName, char c, uint start, uint num, void* buffer);
 void READ(string fileName, uint start, uint num, void* buffer);
 
 void SHUTDOWN(void* buffer);
+>>>>>>> refs/remotes/origin/master
 
 #endif
