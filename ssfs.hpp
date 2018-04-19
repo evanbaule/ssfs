@@ -19,9 +19,9 @@ typedef unsigned int uint;
 typedef struct {
   char fileName[32]; // Max 32 chars
   uint fileSize;
-  uint direct[12];
-  uint indirect;
-  uint doubleIndirect;
+  int direct[12];
+  int indirect;
+  int doubleIndirect;
 } inode;
 
 enum Tag {

@@ -124,7 +124,15 @@ void DELETE(char* fileName)
 
   for(int i =0;i<12;i++)
     {
+      int dir = inod->direct[i];
+      if(dir != -1);
+      *(getDisk() + 256*getBlockSize() + (getBitmapSize()*4)*getBlockSize + dir*getBlockSize()) = 0;
+    }
+  
+  for(int i =0;i<getBlockSize()/4;i++)
+    {
       
+      (getDisk()+getBlockSize()+256*getBlockSize)[i]=0;
     }
 }
 
