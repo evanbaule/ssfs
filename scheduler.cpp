@@ -142,7 +142,6 @@ void IMPORT(char* ssfsFile, char* unixFilename){
   {
     cout << "DANGER: FILE DOES NOT FIT INTO 12 BLOCKS NYI" << endl;
   }
-
 }
 
 void CAT(char* fileName){}
@@ -199,7 +198,7 @@ void WRITE(char* fileName, char c, uint start, uint num){
       } else {
         dblock = inod->direct[i]; //set destination for memcpy to allocated dir block 
       }
-      memcpy(&disk[dblock + (i*block_size) + start], &c, sizeof(char));
+      memcpy(disk + dblock*getBlockSize() + start + i, &c, sizeof(char));
     }
   }
 }
