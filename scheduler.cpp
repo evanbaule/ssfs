@@ -190,7 +190,7 @@ void WRITE(char* fileName, char c, uint start, uint num){
   while(i < num)
   {
     int dblock;
-    if(i < 12)
+    if(i/getBlockSize() < 12)
     {
       if(inod->direct[i] == 0) //block DNE
       {
