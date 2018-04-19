@@ -2,7 +2,6 @@
 
 using namespace std;
 
-/* convince me not to do this */
 pthread_t op_thread[4];
 pthread_t SCH_thread;
 
@@ -131,6 +130,22 @@ process_ops(void* file_arg)
 	return NULL;
 }
 
+char*
+getDisk()
+{
+  return DISK;
+}
+
+uint getBlockSize()
+{
+  return ((int*) DISK)[1];
+}
+
+uint getNumBlocks()
+{
+  return ((int*) DISK)[0];
+}
+
 int main(int argc, char const *argv[])
 {
   /*Read all bytes of the DISK file into the DISK variable*/
@@ -172,3 +187,4 @@ int main(int argc, char const *argv[])
     pthread_create(&SCH_thread, NULL, SCH_run, (void*) str);
 	}
 }
+

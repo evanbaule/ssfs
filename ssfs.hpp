@@ -51,6 +51,7 @@ typedef struct
 
 uint getBlockSize();
 uint getNumBlocks();
+char* getDisk();
 
 void shutdown();
 
