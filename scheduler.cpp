@@ -21,6 +21,7 @@ int getFreeBlock()
   cerr << "disk is fucking full af" << endl;
 }
 
+//TODO: shouldn't use the first some bit maps because they are reserved for meta data and inode map and bit map
 int getEmptyInode()
 {
   char found = 0;
