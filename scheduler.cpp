@@ -1,13 +1,13 @@
 #include "scheduler.hpp"
 
-void CREATE(string filename)
+void CREATE(char* filename)
 {
   char found = 0;
   uint i;
   for(i = 0; i < getNumBlocks()/getBlockSize(); i++)
     {
       /*              metadata        num of inodes         offset in bitmap             */
-      uint byteOffs =  getBlockSize() + 256*getNumBlocks()     +    i;
+      uint byteOffs =  getBlockSize() + 256*getBlockSize()     +    i;
       char* disk = getDisk();
 
       if(disk[byteOffs] == 0)
@@ -17,18 +17,20 @@ void CREATE(string filename)
         }
     }
   if(!found);//ERRORS
-  
+  uint inodeStart = getBlockSize() + i*getBlockSize();
+  inode* inod = ((inode*)(getDisk()+inodeStart));
+  strcpy(inod->fileName, filename);
 }
 
-void IMPORT(string ssfsFile, string unixFilename){}
+void IMPORT(char* ssfsFile, char* unixFilename){}
 
-void CAT(string fileName){}
+void CAT(char* fileName){}
 
-void DELETE(string fileName){}
+void DELETE(char* fileName){}
 
-void WRITE(string fileName, char c, uint start, uint num){}
+void WRITE(char* fileName, char c, uint start, uint num){}
 
-void READ(string fileName, uint start, uint num){}
+void READ(char* fileName, uint start, uint num){}
 
 bool shut=0;
 

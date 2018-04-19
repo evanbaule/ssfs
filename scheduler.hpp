@@ -5,17 +5,17 @@
 
 using namespace std;
 
-void CREATE(string filename);
+void CREATE(char* filename);
 
-void IMPORT(string ssfsFile, string unixFilename);
+void IMPORT(char* ssfsFile, char* unixFilename);
 
-void CAT(string fileName);
+void CAT(char* fileName);
 
-void DELETE(string fileName);
+void DELETE(char* fileName);
 
-void WRITE(string fileName, char c, uint start, uint num);
+void WRITE(char* fileName, char c, uint start, uint num);
 
-void READ(string fileName, uint start, uint num);
+void READ(char* fileName, uint start, uint num);
 
 void SHUTDOWN();
 
