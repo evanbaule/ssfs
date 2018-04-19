@@ -25,6 +25,8 @@ enum tags {
 	shutdown_tag,
 };
 
+void fuck_you(void* test_func);
+
 typedef struct {
 	tags tag; //Maps to disk operation
 	string fname1; //<SSFS File Name>
