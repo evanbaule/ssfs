@@ -68,7 +68,7 @@ inode* getIndexFromInode(int ind)
 void CREATE(char* filename)
 {
   if(filename[0] == 0); //ERROR
-  int i = GETINODE();
+  int i = getEmptyInode();
   if(i==-1);//ERRORS
   int inodeStart = getBlockSize() + i*getBlockSize();
   inode* inod = ((inode*)(getDisk()+inodeStart));
@@ -125,14 +125,13 @@ void DELETE(char* fileName)
   for(int i =0;i<12;i++)
     {
       int dir = inod->direct[i];
-      if(dir != -1);
-      *(getDisk() + 256*getBlockSize() + (getBitmapSize()*4)*getBlockSize + dir*getBlockSize()) = 0;
+      *(getDisk() + 256*getBlockSize() + (dir)) = 0;
     }
-  
+
+  int* indirect = (getDisk() + 256*getBlockSize() + (getBitmapSize()*4)*getBlockSize + indirect*getBlockSize());
   for(int i =0;i<getBlockSize()/4;i++)
     {
-      
-      (getDisk()+getBlockSize()+256*getBlockSize)[i]=0;
+      *(getDisk() + 256*getBlockSize() + (getBitmapSize()*4)*getBlockSize + indirect[i]*getBlockSize()) = 0;
     }
 }
 
