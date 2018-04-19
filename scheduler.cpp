@@ -1,9 +1,9 @@
 #include "scheduler.hpp"
 
-void CREATE(char* filename)
+int GETINODE(char* filename)
 {
   char found = 0;
-  uint i;
+  int i;
   for(i = 0; i < getNumBlocks()/getBlockSize(); i++)
     {
       /*              metadata        num of inodes         offset in bitmap             */
@@ -16,8 +16,15 @@ void CREATE(char* filename)
           break;
         }
     }
-  if(!found);//ERRORS
-  uint inodeStart = getBlockSize() + i*getBlockSize();
+  if(!found) return -1;
+  return i;
+}
+
+void CREATE(char* filename)
+{
+  int i = GETINODE(filename);
+  if(i==-1);//ERRORS
+  int inodeStart = getBlockSize() + i*getBlockSize();
   inode* inod = ((inode*)(getDisk()+inodeStart));
   strcpy(inod->fileName, filename);
 }

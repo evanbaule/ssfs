@@ -17,6 +17,8 @@ void WRITE(char* fileName, char c, uint start, uint num);
 
 void READ(char* fileName, uint start, uint num);
 
+int GETINODE(char* fileName);
+
 void SHUTDOWN();
 
 void* SCH_run(void* vec);
