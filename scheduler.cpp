@@ -119,10 +119,18 @@ void IMPORT(char* ssfsFile, char* unixFilename){
       end_write = true;
       continue;
     }
-    int dblock = getFreeBlock();
-    inod->direct[i] = dblock;
-    memcpy(&disk[dblock + (i*block_size)], &read_buffer[data_ptr], block_size);
-    data_ptr += block_size;
+
+    int dblock;
+    if(inod->direct[i] == 0) //block DNE
+    {
+      dblock = getFreeBlock(); //allocate a block
+      inod->direct[i] = dblock; //assign block# to inode
+    } else {
+      dblock = inod->direct[i]; //set destination for memcpy to allocated dir block 
+    }
+
+    memcpy(&disk[dblock + (i*block_size)], &read_buffer[data_ptr], block_size); //write to the disk
+    data_ptr += block_size; //move file stream pointer
   }
 
   if(end_write)
@@ -156,7 +164,31 @@ void DELETE(char* fileName)
     }
 }
 
-void WRITE(char* fileName, char c, uint start, uint num){}
+void WRITE(char* fileName, char c, uint start, uint num){
+  inode* inod = GETINODE(fileName);
+  if(inod == -1)
+  {
+    inod = GETEMPTYINODE();
+  }
+
+  int total_bytes = num;
+  int i = 0;
+  while(i < num)
+  {
+    int dblock;
+    if(i < 12)
+    {
+      if(inod->direct[i] == 0) //block DNE
+      {
+        dblock = getFreeBlock(); //allocate a block
+        inod->direct[i] = dblock; //assign block# to inode
+      } else {
+        dblock = inod->direct[i]; //set destination for memcpy to allocated dir block 
+      }
+      memcpy(&disk[dblock + (i*block_size) + start], &c, sizeof(char));
+    }
+  }
+}
 
 void READ(char* fileName, uint start, uint num){}
 
