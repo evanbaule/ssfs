@@ -49,6 +49,8 @@ typedef struct
   pthread_mutex_t lock;
 } SCH_struct;
 
+uint getBlockSize();
+uint getNumBlocks();
 
 void shutdown();
 
