@@ -7,7 +7,7 @@ void CREATE(string filename)
   for(i = 0; i < getNumBlocks()/getBlockSize(); i++)
     {
       /*              metadata        num of inodes         offset in bitmap             */
-      uint byteOffs =  getBlockSize() + 256*getNumBlocks()     +    i;
+      uint byteOffs =  getBlockSize() + 256*getBlockSize()     +    i;
       char* disk = getDisk();
 
       if(disk[byteOffs] == 0)
@@ -20,7 +20,21 @@ void CREATE(string filename)
   
 }
 
-void IMPORT(string ssfsFile, string unixFilename){}
+void IMPORT(char* ssfsFile, char* unixFilename){
+  char* DISK = getDisk();
+  uint block_size = getBlockSize();
+  uint num_blocks = getNumBlocks();
+  uint byteOffs =  block_size + 256*block_size + i + (num_blocks/block_size);
+  uint max_file_size = 1 + 12 + (block_size/sizeof(int)) + ((block_size*block_size)/(sizeof(int)*sizeof(int)));
+  char* buffer[max_file_size];
+  int fd = open((const char*)unixFileName, O_RDONLY);
+  ssize_t bytes_read = read(fd, buffer, max_file_size);
+
+  //Get size of unix file to check return from read got whole file
+  
+
+
+}
 
 void CAT(string fileName){}
 
