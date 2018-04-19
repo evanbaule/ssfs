@@ -15,6 +15,9 @@ int getFreeBlock()
     if(disk[i] == 0)
       return i;
   }
+
+  disk[byteOffs + i] = 1;
+
   cerr << "disk is fucking full af" << endl;
 }
 
@@ -82,9 +85,9 @@ void IMPORT(char* ssfsFile, char* unixFilename){
 
   uint byteOffs =  block_size + 256*block_size + i + (num_blocks/block_size);
   uint max_file_size = 1 + 12 + (block_size/sizeof(int)) + ((block_size*block_size)/(sizeof(int)*sizeof(int)));
-  char* buffer[max_file_size];
+  char* read_buffer[max_file_size];
   int fd = open((const char*)unixFileName, O_RDONLY);
-  ssize_t bytes_read = read(fd, buffer, max_file_size);
+  ssize_t bytes_read = read(fd, read_buffer, max_file_size);
 
   //Get size of unix file to check return from read got whole file
   /*idec if this works or not
@@ -106,9 +109,26 @@ void IMPORT(char* ssfsFile, char* unixFilename){
     inod = GETEMPTYINODE();
   }
 
-  
-  
+  bool end_write;
 
+  uint data_ptr = 0;
+  for(int i = 0; i < 12 && !end_write; i++)
+  {
+    if(read_buffer[data_ptr] == 0)
+    {
+      end_write = true;
+      continue;
+    }
+    int dblock = getFreeBlock();
+    inod->direct[i] = dblock;
+    memcpy(&disk[dblock + (i*block_size)], &read_buffer[data_ptr], block_size);
+    data_ptr += block_size;
+  }
+
+  if(end_write)
+  {
+    cout << "DANGER: FILE DOES NOT FIT INTO 12 BLOCKS NYI" << endl;
+  }
 
 }
 
