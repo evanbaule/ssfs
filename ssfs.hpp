@@ -16,7 +16,7 @@ using namespace std;
 typedef unsigned int uint;
 
 typedef struct {
-  string fileName; // Max 32 chars
+  char fileName[32]; // Max 32 chars
   uint fileSize;
   uint direct[12];
   uint indirect;
