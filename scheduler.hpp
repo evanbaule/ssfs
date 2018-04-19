@@ -17,9 +17,11 @@ void WRITE(char* fileName, char c, uint start, uint num);
 
 void READ(char* fileName, uint start, uint num);
 
-int GETEMPTYINODE();
+int getEmptyInode();
 
-int GETINODE(char* file);
+int getInode(char* file);
+
+inode* getInodeFromIndex(int ind);
 
 void SHUTDOWN();
 

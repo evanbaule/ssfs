@@ -1,6 +1,6 @@
 #include "scheduler.hpp"
 
-int GETEMPTYINODE()
+int getEmptyInode()
 {
   char found = 0;
   int i;
@@ -20,7 +20,7 @@ int GETEMPTYINODE()
   return i;
 }
 
-int GETINODE(char* file)
+int getInode(char* file)
 {
   char found = 0;
   int i;
@@ -40,6 +40,13 @@ int GETINODE(char* file)
   return i;
 }
 
+inode* getIndexFromInode(int ind)
+{
+  int inodeStart = getBlockSize() + ind*getBlockSize();
+  inode* inod = ((inode*)(getDisk()+inodeStart));
+  return inod;
+}
+
 void CREATE(char* filename)
 {
   if(filename[0] == 0); //ERROR
@@ -56,7 +63,16 @@ void CAT(char* fileName){}
 
 void DELETE(char* fileName)
 {
-  
+  int id = getInode(fileName);
+  if(id == -1);//ERRORS
+  inode* inod = getInodeFromIndex(id);
+  inod->fileName[0] = 0;
+  inod->fileSize = 0;
+
+  for(int i =0;i<12;i++)
+    {
+      
+    }
 }
 
 void WRITE(char* fileName, char c, uint start, uint num){}
