@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <iostream>
 #include <string>
+#include <cstring>
 #include <queue>
 #include <fstream>
 #include <pthread.h>
