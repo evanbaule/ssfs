@@ -18,7 +18,7 @@ int getFreeBlock()
   cerr << "disk is fucking full af" << endl;
 }
 
-int GETEMPTYINODE()
+int getEmptyInode()
 {
   char found = 0;
   int i;
