@@ -1,6 +1,24 @@
 #include "scheduler.hpp"
 
-void CREATE(string filename){}
+void CREATE(string filename)
+{
+  char found = 0;
+  uint i;
+  for(i = 0; i < getNumBlocks()/getBlockSize(); i++)
+    {
+      /*              metadata        num of inodes         offset in bitmap             */
+      uint byteOffs =  getBlockSize() + 256*getNumBlocks()     +    i;
+      char* disk = getDisk();
+
+      if(disk[byteOffs] == 0)
+        {
+          found = 1;
+          break;
+        }
+    }
+  if(!found);//ERRORS
+  
+}
 
 void IMPORT(string ssfsFile, string unixFilename){}
 
