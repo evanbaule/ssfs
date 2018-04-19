@@ -68,6 +68,11 @@ inode* getIndexFromInode(int ind)
   return inod;
 }
 
+int getStartOfDataBlocks()
+{
+  return getBlockSize() + 256*getBlockSize() + (getBitmapSize()*4)/getBlockSize() + ((getBitmapSize()*4)%getBlockSize()!=0);
+}
+
 void CREATE(char* filename)
 {
   if(filename[0] == 0); //ERROR
@@ -145,19 +150,32 @@ void DELETE(char* fileName)
   for(int i =0;i<12;i++)
     {
       int dir = inod->direct[i];
-      *(getDisk() + 256*getBlockSize() + (dir)) = 0;
+      *(getDisk() + getBlockSize() + 256*getBlockSize() + (dir)) = 0;
     }
 
-  int* indirect = (getDisk() + 256*getBlockSize() + (getBitmapSize()*4)*getBlockSize + indirect*getBlockSize());
+  int* indirect = (int*) (getDisk() + inod->indirect*getBlockSize());
   for(int i =0;i<getBlockSize()/4;i++)
     {
-      *(getDisk() + 256*getBlockSize() + (getBitmapSize()*4)*getBlockSize + indirect[i]*getBlockSize()) = 0;
+      *(getDisk() + getBlockSize() + 256*getBlockSize() + (indirect[i])) = 0;
+    }
+
+  int* doubleindirect = (int*) (getDisk() + inod->doubleindirect*getBlockSize());
+  for(int i =0;i<getBlockSize()/4;i++)
+    {
+      int* indirect2 = (int*) (getDisk() + doubleindirect[i]*getBlockSize());
+      for(int j=0;j<getBlockSize()/4;j++)
+        {
+          *(getDisk() + getBlockSize() + 256*getBlockSize() + (indirect2[i])) = 0;
+        }
     }
 }
 
 void WRITE(char* fileName, char c, uint start, uint num){}
 
-void READ(char* fileName, uint start, uint num){}
+void READ(char* fileName, uint start, uint num)
+{
+  char* bytes = new char[num];
+}
 
 bool shut=0;
 
