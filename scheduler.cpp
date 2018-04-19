@@ -1,13 +1,13 @@
 #include "scheduler.hpp"
 
-int GETINODE(char* filename)
+int GETEMPTYINODE()
 {
   char found = 0;
   int i;
   for(i = 0; i < getNumBlocks()/getBlockSize(); i++)
     {
-      /*              metadata        num of inodes         offset in bitmap             */
-      uint byteOffs =  getBlockSize() + 256*getBlockSize()     +    i;
+      /*              metadata        num of inodes        */
+      uint byteOffs =  getBlockSize() + i*getBlockSize();
       char* disk = getDisk();
 
       if(disk[byteOffs] == 0)
@@ -20,9 +20,30 @@ int GETINODE(char* filename)
   return i;
 }
 
+int GETINODE(char* file)
+{
+  char found = 0;
+  int i;
+  for(i = 0; i < getNumBlocks()/getBlockSize(); i++)
+    {
+      /*              metadata        num of inodes        */
+      uint byteOffs =  getBlockSize() + i*getBlockSize();
+      char* disk = getDisk();
+
+      if(strcmp(disk[byteOffs], file) == 0)
+        {
+          found = 1;
+          break;
+        }
+    }
+  if(!found) return -1;
+  return i;
+}
+
 void CREATE(char* filename)
 {
-  int i = GETINODE(filename);
+  if(filename[0] == 0); //ERROR
+  int i = GETINODE();
   if(i==-1);//ERRORS
   int inodeStart = getBlockSize() + i*getBlockSize();
   inode* inod = ((inode*)(getDisk()+inodeStart));
@@ -33,7 +54,10 @@ void IMPORT(char* ssfsFile, char* unixFilename){}
 
 void CAT(char* fileName){}
 
-void DELETE(char* fileName){}
+void DELETE(char* fileName)
+{
+  
+}
 
 void WRITE(char* fileName, char c, uint start, uint num){}
 

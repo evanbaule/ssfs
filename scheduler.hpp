@@ -17,7 +17,9 @@ void WRITE(char* fileName, char c, uint start, uint num);
 
 void READ(char* fileName, uint start, uint num);
 
-int GETINODE(char* fileName);
+int GETEMPTYINODE();
+
+int GETINODE(char* file);
 
 void SHUTDOWN();
 
