@@ -14,7 +14,7 @@ void*
 process_ops(void* file_arg)
 {
 	//string op_file_name = "thread1ops.txt";
-  char* op_file_name = *(char**)file_arg;
+  char* op_file_name = (char*)file_arg;
 	cout << "Thread created:\t" << op_file_name << endl;
 
 	/* Parsing */
