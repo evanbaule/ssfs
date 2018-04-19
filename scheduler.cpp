@@ -21,7 +21,7 @@ int getFreeBlock()
   cerr << "disk is fucking full af" << endl;
 }
 
-int GETEMPTYINODE()
+int getEmptyInode()
 {
   char found = 0;
   int i;
@@ -41,7 +41,7 @@ int GETEMPTYINODE()
   return i;
 }
 
-int GETINODE(char* file)
+int getInode(char* file)
 {
   char found = 0;
   int i;
@@ -59,6 +59,13 @@ int GETINODE(char* file)
     }
   if(!found) return -1;
   return i;
+}
+
+inode* getIndexFromInode(int ind)
+{
+  int inodeStart = getBlockSize() + ind*getBlockSize();
+  inode* inod = ((inode*)(getDisk()+inodeStart));
+  return inod;
 }
 
 void CREATE(char* filename)
@@ -129,7 +136,24 @@ void CAT(char* fileName){}
 
 void DELETE(char* fileName)
 {
+  int id = getInode(fileName);
+  if(id == -1);//ERRORS
+  inode* inod = getInodeFromIndex(id);
+  inod->fileName[0] = 0;
+  inod->fileSize = 0;
+
+  for(int i =0;i<12;i++)
+    {
+      int dir = inod->direct[i];
+      if(dir != -1);
+      *(getDisk() + 256*getBlockSize() + (getBitmapSize()*4)*getBlockSize + dir*getBlockSize()) = 0;
+    }
   
+  for(int i =0;i<getBlockSize()/4;i++)
+    {
+      
+      (getDisk()+getBlockSize()+256*getBlockSize)[i]=0;
+    }
 }
 
 void WRITE(char* fileName, char c, uint start, uint num){}
