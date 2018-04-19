@@ -2,12 +2,8 @@
 #define SCHEDULER_HPP
 
 #include "ssfs.hpp"
-#include <vector>
-#include <pthread.h>
 
 using namespace std;
-
-pthread_t SCH_thread;
 
 void CREATE(string filename);
 

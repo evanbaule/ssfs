@@ -4,6 +4,21 @@ using namespace std;
 
 /* convince me not to do this */
 pthread_t op_thread[4];
+pthread_t SCH_thread;
+
+/*byte array of the disk in memory*/
+char* DISK;
+
+/*Any access to the DISK array should be locked by this*/
+pthread_mutex_t DISK_LOCK = PTHREAD_MUTEX_INITIALIZER;
+
+pthread_mutex_t REQUESTS_LOCK = PTHREAD_MUTEX_INITIALIZER;
+
+queue<request>* requests;
+
+bool stop = 0;
+
+void shutdown() {stop = 1;}
 
 void*
 process_ops(void* file_arg)
@@ -17,6 +32,7 @@ process_ops(void* file_arg)
 	string linebuff;
 	while(getline(input_stream, linebuff))
 	{
+    if(stop) break;
     stringstream ss(linebuff);
     string command;
     ss >> command;
@@ -109,9 +125,8 @@ process_ops(void* file_arg)
       }
 
     pthread_mutex_lock(&REQUESTS_LOCK);
-    requests->push_back(r);
+    requests->push(r);
     pthread_mutex_unlock(&REQUESTS_LOCK);
-
 	}
 	return NULL;
 }
@@ -151,6 +166,9 @@ int main(int argc, char const *argv[])
       }
 
     /*scheduler thread*/
-    pthread_create(&SCH_thread, NULL, SCH_run, (void*) requests);
+    SCH_struct* str = new SCH_struct;
+    str->requests = requests;
+    str->lock = REQUESTS_LOCK;
+    pthread_create(&SCH_thread, NULL, SCH_run, (void*) str);
 	}
 }
