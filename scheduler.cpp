@@ -9,7 +9,7 @@ getBitMapSize()
 int getFreeBlock()
 {
   char* disk = getDisk();
-  uint byteOffs =  getBlockSize() + 256*getBlockSize();
+  uint byteOffs =  getBlockSize() + 256*getBlockSize() + ((getBitmapSize()*4)/getBlockSize() + ((getBitmapSize()*4)%getBlockSize()!=0))*getBlockSize();
   for(unsigned int i = byteOffs; i < byteOffs + getBitMapSize(); i++)
   {
     if(disk[i] == 0)
@@ -70,7 +70,7 @@ inode* getIndexFromInode(int ind)
 
 int getStartOfDataBlocks()
 {
-  return getBlockSize() + 256*getBlockSize() + (getBitmapSize()*4)/getBlockSize() + ((getBitmapSize()*4)%getBlockSize()!=0);
+  return getBlockSize() + 256*getBlockSize() + ((getBitmapSize()*4)/getBlockSize() + ((getBitmapSize()*4)%getBlockSize()!=0))*getBlockSize();
 }
 
 void CREATE(char* filename)
@@ -206,6 +206,7 @@ void WRITE(char* fileName, char c, uint start, uint num){
 void READ(char* fileName, uint start, uint num)
 {
   char* bytes = new char[num];
+  inode* inod = getInodeFromIndex(getInode(fileName));
 }
 
 bool shut=0;
