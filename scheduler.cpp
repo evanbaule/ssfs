@@ -71,7 +71,7 @@ inode* getIndexFromInode(int ind)
 
 int getStartOfDataBlocks()
 {
-  return getBlockSize() + 256*getBlockSize() + ((getBitmapSize()*4)/getBlockSize() + ((getBitmapSize()*4)%getBlockSize()!=0))*getBlockSize();
+  return getBlockSize() + MAX_INODES*getBlockSize() + ((getBitmapSize()*4)/getBlockSize() + ((getBitmapSize()*4)%getBlockSize()!=0))*getBlockSize();
 }
 
 void CREATE(char* filename)
@@ -85,72 +85,81 @@ void CREATE(char* filename)
 }
 
 void IMPORT(char* ssfsFile, char* unixFilename){
-  char* DISK = getDisk();
+  /* Initializing */
+  char* disk = getDisk();
   uint block_size = getBlockSize();
   uint num_blocks = getNumBlocks();
-
-  uint byteOffs =  block_size + 256*block_size + i + (num_blocks/block_size);
-  uint max_file_size = 1 + 12 + (block_size/sizeof(int)) + ((block_size*block_size)/(sizeof(int)*sizeof(int)));
-  char* read_buffer[max_file_size];
+  uint byteOffs =  block_size + MAX_INODES*block_size + i + (num_blocks/block_size);
+  uint max_file_size = block_size * (1 + NUM_DIRECT_BLOCKS + (block_size/sizeof(int)) + ((block_size*block_size)/(sizeof(int)*sizeof(int))); //max number of blocks we can hold in a single file * num of bytes in a block
+  
   int fd = open((const char*)unixFileName, O_RDONLY);
-  ssize_t bytes_read = read(fd, read_buffer, max_file_size);
 
-  //Get size of unix file to check return from read got whole file
-  /*idec if this works or not
-  struct stat sb; 
-  if (stat(unixFilename, &sb) == -1) {
-    perror("stat fucked");
-    return;
-  }
-  if(bytes_read != fs.st_size)
+  /* Gets & checks the total bytes of unixFilename file */
+  int filesize;
+  struct stat sb;
+  if(fstat(fd, &sb) == -1)
   {
-    cerr << "read() syscall is fucked up and didnt read the correct amt of bits" << endl;
+    cerr << "Failed to read file size from fstat(fd, &sb) in func IMPORT" << endl;
     return;
   }
-  */
+  else 
+  {
+    filesize = sb.st_size;
+  }
 
-  inode* inod = GETINODE(ssfsFile);
-  if(inod == -1)
+  /* Checks if we have room in the file structure to store all the data */
+  if(filesize > max_file_size - 1) // - 1 to make room for trailing bytes
+  {
+    cerr << "Unable to read unix file: file is too large in func IMPORT" << endl;
+    return;
+  }
+
+  /* Begins to read from unix file and inject blocks into the disk */
+
+  inode* inod = GETINODE(ssfsFile); //retrieve inode of file to write to OR empty file to begin writing to
+  if(inod == -1) //this condition may be off at this point (4/20 @13:42)
   {
     inod = GETEMPTYINODE();
   }
 
-  bool end_write;
-
-//TODO: Change this shit so that it reads one block at a time instead of the whole file and then trying to keep a ptr to where we want to write
-
-  int blocks_read = 0;
-  for(int i = 0; i < (bytes_read/block_size); i++) //for each block read from file
+  //i represents the # of blocks read at point in loop
+  char* read_buffer[block_size];
+  for(int i = 0; i < (filesize + block_size)/block_size; i++) //add block size to filesize to avoid truncating
   {
-
-  }
-
-
-  uint data_ptr = 0;
-  for(int i = 0; i < 12 && !end_write; i++)
-  {
-    if(read_buffer[data_ptr] == 0)
+    ssize_t bytes_read = read(fd, read_buffer, max_file_size);
+    if(bytes_read != block_size)
     {
-      end_write = true;
-      continue;
+      cerr << "Read the wrong number of bytes into read_buffer OR maybe reached end of the file. Not sure tbh - EB" << endl;
+      break;
+    }
+    int dblock; //destination block
+   
+    //Index into direct data blocks
+    if(i < NUM_DIRECT_BLOCKS)
+    {
+      if(inod->direct[i] == 0) //block DNE
+      {
+        dblock = getFreeBlock(); //allocate a block
+        inod->direct[i] = dblock; //assign block# to inode
+      } else {
+        dblock = inod->direct[i]; //set destination for memcpy to allocated dir block 
+      }
+      memcpy(&getDisk() + getBlockSize() + MAX_INODES*getBlockSize() + (i*block_size)], &read_buffer, block_size); //index into direct block
     }
 
-    int dblock;
-    if(inod->direct[i] == 0) //block DNE
+    //Index into indirect data block
+    else if (i >= NUM_DIRECT_BLOCKS && i < (NUM_DIRECT_BLOCKS + (block_size/sizeof(int))))
     {
-      dblock = getFreeBlock(); //allocate a block
-      inod->direct[i] = dblock; //assign block# to inode
-    } else {
-      dblock = inod->direct[i]; //set destination for memcpy to allocated dir block 
+
+
     }
 
-    memcpy(&disk[dblock + (i*block_size)], &read_buffer[data_ptr], block_size); //write to the disk
-    data_ptr += block_size; //move file stream pointer
-  }
+    //Index into double indirect data block
+    else if (i >= (NUM_DIRECT_BLOCKS + (block_size/sizeof(int)) && i < (NUM_DIRECT_BLOCKS + (block_size/sizeof(int) + (block_size * block_size)/(sizeof(int) * sizeof(int)))))) //holy
+    {
+      
 
-  if(end_write)
-  {
-    cout << "DANGER: FILE DOES NOT FIT INTO 12 BLOCKS NYI" << endl;
+    }
   }
 }
 
@@ -164,16 +173,16 @@ void DELETE(char* fileName)
   inod->fileName[0] = 0;
   inod->fileSize = 0;
 
-  for(int i =0;i<12;i++)
+  for(int i =0;i<NUM_DIRECT_BLOCKS;i++)
     {
       int dir = inod->direct[i];
-      *(getDisk() + getBlockSize() + 256*getBlockSize() + (dir)) = 0;
+      *(getDisk() + getBlockSize() + MAX_INODES*getBlockSize() + (dir)) = 0;
     }
 
   int* indirect = (int*) (getDisk() + inod->indirect*getBlockSize());
   for(int i =0;i<getBlockSize()/4;i++)
     {
-      *(getDisk() + getBlockSize() + 256*getBlockSize() + (indirect[i])) = 0;
+      *(getDisk() + getBlockSize() + MAX_INODES*getBlockSize() + (indirect[i])) = 0;
     }
 
   int* doubleindirect = (int*) (getDisk() + inod->doubleindirect*getBlockSize());
@@ -182,7 +191,7 @@ void DELETE(char* fileName)
       int* indirect2 = (int*) (getDisk() + doubleindirect[i]*getBlockSize());
       for(int j=0;j<getBlockSize()/4;j++)
         {
-          *(getDisk() + getBlockSize() + 256*getBlockSize() + (indirect2[i])) = 0;
+          *(getDisk() + getBlockSize() + MAX_INODES*getBlockSize() + (indirect2[i])) = 0;
         }
     }
 }
@@ -199,7 +208,7 @@ void WRITE(char* fileName, char c, uint start, uint num){
   while(i < num)
   {
     int dblock;
-    if(i/getBlockSize() < 12)
+    if(i/getBlockSize() < NUM_DIRECT_BLOCKS)
     {
       if(inod->direct[i] == 0) //block DNE
       {
@@ -211,7 +220,7 @@ void WRITE(char* fileName, char c, uint start, uint num){
       }
       memcpy(disk + dblock*getBlockSize() + start + i, &c, sizeof(char));
     }
-    else if(i > 12 && i < (12 + getBlockSize()/sizeof(int))
+    else if(i > NUM_DIRECT_BLOCKS && i < (NUM_DIRECT_BLOCKS + getBlockSize()/sizeof(int))
     {
       int indir_block = inod->indirect;
       if(disk+indir_block == 0) //block DNE
