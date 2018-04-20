@@ -12,14 +12,27 @@
 
 #include "scheduler.hpp"
 
+
+/* Constants */
+#define MAX_FILENAME_SIZE 32;
+#define NUM_DIRECT_BLOCKS 12;
+
+#define MIN_BLOCK_SIZE 128;
+#define MAX_BLOCK_SIZE 512;
+
+#define MIN_DISK_SIZE 1024;
+#define MAX_DISK_SIZE 128000; //technically 131,072 but thats a nitpick
+
+#define MAX_INODES 256;
+
 using namespace std;
 
 typedef unsigned int uint;
 
 typedef struct {
-  char fileName[32]; // Max 32 chars
+  char fileName[MAX_FILENAME_SIZE]; // Max 32 chars
   uint fileSize;
-  uint direct[12];
+  uint direct[NUM_DIRECT_BLOCKS];
   uint indirect;
   uint doubleIndirect;
 } inode;

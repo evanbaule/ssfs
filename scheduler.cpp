@@ -9,7 +9,7 @@ getBitMapSize()
 int getFreeBlock()
 {
   char* disk = getDisk();
-  uint byteOffs =  getBlockSize() + 256*getBlockSize() + ((getBitmapSize()*4)/getBlockSize() + ((getBitmapSize()*4)%getBlockSize()!=0))*getBlockSize();
+  uint byteOffs =  getBlockSize() + MAX_INODES*getBlockSize() + ((getBitmapSize()*4)/getBlockSize() + ((getBitmapSize()*4)%getBlockSize()!=0))*getBlockSize();
   for(unsigned int i = byteOffs; i < byteOffs + getBitMapSize(); i++)
   {
     if(disk[i] == 0)
@@ -119,6 +119,13 @@ void IMPORT(char* ssfsFile, char* unixFilename){
 
 //TODO: Change this shit so that it reads one block at a time instead of the whole file and then trying to keep a ptr to where we want to write
 
+  int blocks_read = 0;
+  for(int i = 0; i < (bytes_read/block_size); i++) //for each block read from file
+  {
+
+  }
+
+
   uint data_ptr = 0;
   for(int i = 0; i < 12 && !end_write; i++)
   {
@@ -198,10 +205,22 @@ void WRITE(char* fileName, char c, uint start, uint num){
       {
         dblock = getFreeBlock(); //allocate a block
         inod->direct[i] = dblock; //assign block# to inode
-      } else {
+      } else 
+      {
         dblock = inod->direct[i]; //set destination for memcpy to allocated dir block 
       }
       memcpy(disk + dblock*getBlockSize() + start + i, &c, sizeof(char));
+    }
+    else if(i > 12 && i < (12 + getBlockSize()/sizeof(int))
+    {
+      int indir_block = inod->indirect;
+      if(disk+indir_block == 0) //block DNE
+      {
+        dblock = getFreeBlock();
+      } else 
+      {
+        dblock = indir_block + i*sizeof(int);
+      }
     }
   }
 }
