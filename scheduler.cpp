@@ -42,6 +42,11 @@ int getEmptyInode()
   return i;
 }
 
+int getDataStart()
+{
+  return (getBlcokSize() + MAX_INODES*getBlockSize + getBitMapSize());
+}
+
 int getInode(char* file)
 {
   char found = 0;
@@ -137,6 +142,7 @@ void IMPORT(char* ssfsFile, char* unixFilename){
     //Index into direct data blocks
     if(i < NUM_DIRECT_BLOCKS)
     {
+
       if(inod->direct[i] == 0) //block DNE
       {
         dblock = getFreeBlock(); //allocate a block
@@ -145,18 +151,29 @@ void IMPORT(char* ssfsFile, char* unixFilename){
         dblock = inod->direct[i]; //set destination for memcpy to allocated dir block 
       }
       memcpy(&getDisk() + getBlockSize() + MAX_INODES*getBlockSize() + (i*block_size)], &read_buffer, block_size); //index into direct block
+    
     }
 
     //Index into indirect data block
     else if (i >= NUM_DIRECT_BLOCKS && i < (NUM_DIRECT_BLOCKS + (block_size/sizeof(int))))
     {
-
+      int indir_block = disk + inod->indirect[i-NUM_DIRECT_BLOCKS];
+      if(disk + indir_block == 0) //block DNE
+      {
+        dblock = getFreeBlock();
+      } 
+      else 
+      {
+        dblock = indir_block + i*sizeof(int);
+      }
+      memcpy(&getDisk() + getBlockSize() + MAX_INODES*getBlockSize() + (getDisk() + i*block))
 
     }
 
     //Index into double indirect data block
     else if (i >= (NUM_DIRECT_BLOCKS + (block_size/sizeof(int)) && i < (NUM_DIRECT_BLOCKS + (block_size/sizeof(int) + (block_size * block_size)/(sizeof(int) * sizeof(int)))))) //holy
     {
+
       
 
     }
@@ -203,34 +220,30 @@ void WRITE(char* fileName, char c, uint start, uint num){
     inod = GETEMPTYINODE();
   }
 
-  int total_bytes = num;
-  int i = 0;
-  while(i < num)
+  //i is the number of bytes we have written
+  for(uint i = start; i < num; i++)
   {
-    int dblock;
-    if(i/getBlockSize() < NUM_DIRECT_BLOCKS)
+    int current_block = i/getBlockSize(); //current block worth of data (i.e. if we write 300 characters and block size if 128 we are on block 3 of chars)
+    int max_indirect_block = (NUM_DIRECT_BLOCKS + (block_size/sizeof(int)));
+    int max_double_indirect_block = (NUM_DIRECT_BLOCKS + (block_size/sizeof(int)) + (block_size*block_size)/(sizeof(int)*sizeof(int)));
+    if(current_block < NUM_DIRECT_BLOCKS)
     {
-      if(inod->direct[i] == 0) //block DNE
-      {
-        dblock = getFreeBlock(); //allocate a block
-        inod->direct[i] = dblock; //assign block# to inode
-      } else 
-      {
-        dblock = inod->direct[i]; //set destination for memcpy to allocated dir block 
-      }
-      memcpy(disk + dblock*getBlockSize() + start + i, &c, sizeof(char));
+      int dblock = inod->direct[current_block];
+      memcpy(&getDataStart() + dblock + i, &c, sizeof(char));
     }
-    else if(i > NUM_DIRECT_BLOCKS && i < (NUM_DIRECT_BLOCKS + getBlockSize()/sizeof(int))
+    else if(current_block >= NUM_DIRECT_BLOCKS && current_block < max_indirect_block)
     {
-      int indir_block = inod->indirect;
-      if(disk+indir_block == 0) //block DNE
-      {
-        dblock = getFreeBlock();
-      } else 
-      {
-        dblock = indir_block + i*sizeof(int);
-      }
+      int dblock = inod->indirect[(i/block_size)-NUM_DIRECT_BLOCKS];
+      memcpy(&getDataStart() + dblock + i, &c, sizeof(char));
     }
+    /* Double indirect blocks are fucking crazy
+    else if(current_block >= max_indirect_block && current_block < max_double_indirect_block)
+    {
+      int dblock = inod->doubleindirect[(i-max_indirect_block)/block_size];
+      int double_dblock = inod->
+      memcpy(&getDataStart() + dblock + i, &c, sizeof(char));
+    }
+    */
   }
 }
 
