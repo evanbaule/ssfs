@@ -117,6 +117,8 @@ void IMPORT(char* ssfsFile, char* unixFilename){
 
   bool end_write;
 
+//TODO: Change this shit so that it reads one block at a time instead of the whole file and then trying to keep a ptr to where we want to write
+
   uint data_ptr = 0;
   for(int i = 0; i < 12 && !end_write; i++)
   {
