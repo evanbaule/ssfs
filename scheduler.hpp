@@ -21,8 +21,9 @@ int getEmptyInode();
 
 int getInode(char* file);
 
+/*
 inode* getInodeFromIndex(int ind);
-
+*/
 int getStartOfDataBlocks();
 
 void SHUTDOWN();

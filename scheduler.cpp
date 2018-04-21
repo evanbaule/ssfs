@@ -1,7 +1,6 @@
 #include "scheduler.hpp"
 
-int
-getBitMapSize()
+int getBitMapSize()
 {
   return (getNumBlocks()/getBlockSize());
 }
@@ -67,12 +66,14 @@ int getInode(char* file)
   return i;
 }
 
+/*
 inode* getIndexFromInode(int ind)
 {
   int inodeStart = getBlockSize() + ind*getBlockSize();
   inode* inod = ((inode*)(getDisk()+inodeStart));
   return inod;
 }
+*/
 
 int getStartOfDataBlocks()
 {
