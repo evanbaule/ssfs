@@ -11,8 +11,8 @@ link_all: comp_all ssfs.o scheduler.o
 
 #Compiles src files into object in build/*.o
 comp_all: ssfs.cpp scheduler.cpp
-	g++ -c -std=c++11 -Wall ssfs.cpp -o ssfs.o -pthread
-	g++ -c -std=c++11 -Wall scheduler.cpp -o scheduler.o -pthread
+	g++ -c -std=c++11 ssfs.cpp -o ssfs.o -pthread
+	g++ -c -std=c++11 scheduler.cpp -o scheduler.o -pthread
 	
 #Removes object files build/*.o and executable bin/drive(.exe), build afterwards to replace those files
 clean:

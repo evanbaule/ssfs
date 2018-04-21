@@ -38,8 +38,6 @@ typedef struct {
 } inode;
 
 
-
-
 enum Tag {
 	create_tag,
 	import_tag,

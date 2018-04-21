@@ -1,5 +1,9 @@
 #include "scheduler.hpp"
-#include "sys/stat.h"
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <fcntl.h>
+
 
 int getBitmapSize()
 {
@@ -82,9 +86,14 @@ int getStartOfDataBlocks()
 
 void CREATE(char* filename)
 {
-  if(filename[0] == 0); //ERROR
+  if(filename[0] == 0)
+  {
+    cerr << "Invalid filename entered into CREATE argument " << endl;
+  }
   int i = getEmptyInode();
-  if(i==-1);//ERRORS
+  if(i==-1){
+    cerr << "Error generating empty inode in func CREATE" << endl;
+  }
   int inodeStart = getBlockSize() + i*getBlockSize();
   inode* inod = ((inode*)(getDisk()+inodeStart));
   strcpy(inod->fileName, filename);
@@ -98,7 +107,11 @@ void IMPORT(char* ssfsFile, char* unixFilename){
   uint byteOffs =  block_size + MAX_INODES*block_size + (num_blocks/block_size);
   uint max_file_size = block_size * (1 + NUM_DIRECT_BLOCKS + (block_size/sizeof(int)) + ((block_size*block_size)/(sizeof(int)*sizeof(int)))); //max number of blocks we can hold in a single file * num of bytes in a block
   
-  int fd = open((const char*)unixFilename, O_RDONLY);
+  int fd;
+  if((fd = open(unixFilename, O_RDONLY)) == -1)
+  {
+    cerr << "Error opening file stream from " << unixFilename << endl;
+  }
 
   /* Gets & checks the total bytes of unixFilename file */
   int filesize;
@@ -132,52 +145,13 @@ void IMPORT(char* ssfsFile, char* unixFilename){
   char* read_buffer[block_size];
   for(int i = 0; i < (filesize + block_size)/block_size; i++) //add block size to filesize to avoid truncating
   {
-    ssize_t bytes_read = read(fd, read_buffer, max_file_size);
-    if(bytes_read != block_size)
+    int bytes_read;
+    if((bytes_read = read(fd, &read_buffer, block_size)) != block_size)
     {
-      cerr << "Read the wrong number of bytes into read_buffer OR maybe reached end of the file. Not sure tbh - EB" << endl;
+      cerr << "Read the wrong number of bytes into read_buffer OR maybe reached end of the file. Not sure tbh - EMB" << endl;
       break;
     }
-
-    int dblock; //destination block
    
-    //Index into direct data blocks
-    if(i < NUM_DIRECT_BLOCKS)
-    {
-      if(inod->direct[i] == 0) //block DNE
-      {
-        dblock = getFreeBlock(); //allocate a block
-        inod->direct[i] = dblock; //assign block# to inode
-      } else {
-        dblock = inod->direct[i]; //set destination for memcpy to allocated dir block 
-      }
-      memcpy(*getDataStart() + dblock*block_size), &read_buffer, block_size); //index into direct block
-    
-    }
-
-    //Index into indirect data block
-    else if (i >= NUM_DIRECT_BLOCKS && i < (NUM_DIRECT_BLOCKS + (block_size/sizeof(int))))
-    {
-      int indir_block = disk + inod->indirect[i-NUM_DIRECT_BLOCKS];
-      if(disk + indir_block == 0) //block DNE
-      {
-        dblock = getFreeBlock();
-      } 
-      else 
-      {
-        dblock = indir_block + i*sizeof(int);
-      }
-      memcpy(getDisk() + getBlockSize() + MAX_INODES*getBlockSize() + (getDisk() + i*dblock))
-
-    }
-
-    //Index into double indirect data block
-    else if (i >= (NUM_DIRECT_BLOCKS + (block_size/sizeof(int)) && i < (NUM_DIRECT_BLOCKS + (block_size/sizeof(int) + (block_size * block_size)/(sizeof(int) * sizeof(int)))))) //holy
-    {
-
-      
-
-    }
   }
 }
 
@@ -186,7 +160,9 @@ void CAT(char* fileName){}
 void DELETE(char* fileName)
 {
   int id = getInode(fileName);
-  if(id == -1);//ERRORS
+  if(id == -1){
+    cerr << "Error finding inode with fileName in func DELETE" << endl;
+  }
   inode* inod = getInodeFromIndex(id);
   inod->fileName[0] = 0;
   inod->fileSize = 0;
@@ -220,7 +196,9 @@ void WRITE(char* fileName, char c, uint start, uint num)
   int double_indirect_max_size = (getBlockSize()/sizeof(int)) * (getBlockSize()/sizeof(int));
 
   int id = getInode(fileName);
-  if(id == -1);//ERRORS
+  if(id == -1){
+    cerr << "Error finding inode with fileName in func WRITE" << endl;
+  }
   inode* inod = getInodeFromIndex(id);
   for(int i = start; i < num; i++)
   {
@@ -229,7 +207,8 @@ void WRITE(char* fileName, char c, uint start, uint num)
     if(i/getBlockSize() < NUM_DIRECT_BLOCKS)
     {
       //WARNING: NOT CHECKING FOR UNALLOCATED BLOCKS AT THIS POINT
-      memcpy(inod->direct[curr_block] + (i%getBlockSize()), &c, sizeof(char)); 
+      int* loc = (int* ) inod->direct[curr_block] + (i%getBlockSize());
+      memcpy(&loc, &c, sizeof(char)); 
     }
     else if((curr_block >= NUM_DIRECT_BLOCKS) && (curr_block < indirect_max_size)){
       int* loc = (int* ) inod->indirect + (curr_block - NUM_DIRECT_BLOCKS) + ( i % getBlockSize());
