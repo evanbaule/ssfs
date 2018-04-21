@@ -1,6 +1,7 @@
 #include "scheduler.hpp"
+#include "sys/stat.h"
 
-int getBitMapSize()
+int getBitmapSize()
 {
   return (getNumBlocks()/getBlockSize());
 }
@@ -9,15 +10,14 @@ int getFreeBlock()
 {
   char* disk = getDisk();
   uint byteOffs =  getBlockSize() + MAX_INODES*getBlockSize() + ((getBitmapSize()*4)/getBlockSize() + ((getBitmapSize()*4)%getBlockSize()!=0))*getBlockSize();
-  for(unsigned int i = byteOffs; i < byteOffs + getBitMapSize(); i++)
+  for(unsigned int i = byteOffs; i < byteOffs + getBitmapSize(); i++)
   {
     if(disk[i] == 0)
+      disk[byteOffs + i] = 1;
       return i;
   }
-
-  disk[byteOffs + i] = 1;
-
   cerr << "disk is fucking full af" << endl;
+  return -1;
 }
 
 //TODO: shouldn't use the first some bit maps because they are reserved for meta data and inode map and bit map
@@ -43,7 +43,7 @@ int getEmptyInode()
 
 int getDataStart()
 {
-  return (getBlcokSize() + MAX_INODES*getBlockSize + getBitMapSize());
+  return (getBlockSize() + MAX_INODES*getBlockSize() + getBitmapSize());
 }
 
 int getInode(char* file)
@@ -56,7 +56,7 @@ int getInode(char* file)
       uint byteOffs =  getBlockSize() + i*getBlockSize();
       char* disk = getDisk();
 
-      if(strcmp(disk[byteOffs], file) == 0)
+      if(strcmp(disk + byteOffs, file) == 0)
         {
           found = 1;
           break;
@@ -95,10 +95,10 @@ void IMPORT(char* ssfsFile, char* unixFilename){
   char* disk = getDisk();
   uint block_size = getBlockSize();
   uint num_blocks = getNumBlocks();
-  uint byteOffs =  block_size + MAX_INODES*block_size + i + (num_blocks/block_size);
-  uint max_file_size = block_size * (1 + NUM_DIRECT_BLOCKS + (block_size/sizeof(int)) + ((block_size*block_size)/(sizeof(int)*sizeof(int))); //max number of blocks we can hold in a single file * num of bytes in a block
+  uint byteOffs =  block_size + MAX_INODES*block_size + (num_blocks/block_size);
+  uint max_file_size = block_size * (1 + NUM_DIRECT_BLOCKS + (block_size/sizeof(int)) + ((block_size*block_size)/(sizeof(int)*sizeof(int)))); //max number of blocks we can hold in a single file * num of bytes in a block
   
-  int fd = open((const char*)unixFileName, O_RDONLY);
+  int fd = open((const char*)unixFilename, O_RDONLY);
 
   /* Gets & checks the total bytes of unixFilename file */
   int filesize;
@@ -122,10 +122,10 @@ void IMPORT(char* ssfsFile, char* unixFilename){
 
   /* Begins to read from unix file and inject blocks into the disk */
 
-  inode* inod = GETINODE(ssfsFile); //retrieve inode of file to write to OR empty file to begin writing to
+  inode* inod = getInode(ssfsFile); //retrieve inode of file to write to OR empty file to begin writing to
   if(inod == -1) //this condition may be off at this point (4/20 @13:42)
   {
-    inod = GETEMPTYINODE();
+    inod = getEmptyInode();
   }
 
   //i represents the # of blocks read at point in loop
@@ -138,12 +138,12 @@ void IMPORT(char* ssfsFile, char* unixFilename){
       cerr << "Read the wrong number of bytes into read_buffer OR maybe reached end of the file. Not sure tbh - EB" << endl;
       break;
     }
+
     int dblock; //destination block
    
     //Index into direct data blocks
     if(i < NUM_DIRECT_BLOCKS)
     {
-
       if(inod->direct[i] == 0) //block DNE
       {
         dblock = getFreeBlock(); //allocate a block
@@ -151,7 +151,7 @@ void IMPORT(char* ssfsFile, char* unixFilename){
       } else {
         dblock = inod->direct[i]; //set destination for memcpy to allocated dir block 
       }
-      memcpy(&getDisk() + getBlockSize() + MAX_INODES*getBlockSize() + (i*block_size)], &read_buffer, block_size); //index into direct block
+      memcpy(*getDataStart() + dblock*block_size), &read_buffer, block_size); //index into direct block
     
     }
 
@@ -167,7 +167,7 @@ void IMPORT(char* ssfsFile, char* unixFilename){
       {
         dblock = indir_block + i*sizeof(int);
       }
-      memcpy(&getDisk() + getBlockSize() + MAX_INODES*getBlockSize() + (getDisk() + i*block))
+      memcpy(getDisk() + getBlockSize() + MAX_INODES*getBlockSize() + (getDisk() + i*dblock))
 
     }
 
@@ -203,7 +203,7 @@ void DELETE(char* fileName)
       *(getDisk() + getBlockSize() + MAX_INODES*getBlockSize() + (indirect[i])) = 0;
     }
 
-  int* doubleindirect = (int*) (getDisk() + inod->doubleindirect*getBlockSize());
+  int* doubleindirect = (int*) (getDisk() + inod->doubleIndirect*getBlockSize());
   for(int i =0;i<getBlockSize()/4;i++)
     {
       int* indirect2 = (int*) (getDisk() + doubleindirect[i]*getBlockSize());
@@ -214,39 +214,36 @@ void DELETE(char* fileName)
     }
 }
 
-void WRITE(char* fileName, char c, uint start, uint num){
-  inode* inod = GETINODE(fileName);
-  if(inod == -1)
-  {
-    inod = GETEMPTYINODE();
-  }
+void WRITE(char* fileName, char c, uint start, uint num)
+{
+  int indirect_max_size = NUM_DIRECT_BLOCKS + getBlockSize()/sizeof(int); // # of blocks that can be refferenced by an indirect block
+  int double_indirect_max_size = (getBlockSize()/sizeof(int)) * (getBlockSize()/sizeof(int));
 
-  //i is the number of bytes we have written
-  for(uint i = start; i < num; i++)
+  int id = getInode(fileName);
+  if(id == -1);//ERRORS
+  inode* inod = getInodeFromIndex(id);
+  for(int i = start; i < num; i++)
   {
-    int current_block = i/getBlockSize(); //current block worth of data (i.e. if we write 300 characters and block size if 128 we are on block 3 of chars)
-    int max_indirect_block = (NUM_DIRECT_BLOCKS + (block_size/sizeof(int)));
-    int max_double_indirect_block = (NUM_DIRECT_BLOCKS + (block_size/sizeof(int)) + (block_size*block_size)/(sizeof(int)*sizeof(int)));
-    if(current_block < NUM_DIRECT_BLOCKS)
+    int curr_block = i/getBlockSize(); //for shorthand later on
+
+    if(i/getBlockSize() < NUM_DIRECT_BLOCKS)
     {
-      int dblock = inod->direct[current_block];
-      memcpy(&getDataStart() + dblock + i, &c, sizeof(char));
+      //WARNING: NOT CHECKING FOR UNALLOCATED BLOCKS AT THIS POINT
+      memcpy(inod->direct[curr_block] + (i%getBlockSize()), &c, sizeof(char)); 
     }
-    else if(current_block >= NUM_DIRECT_BLOCKS && current_block < max_indirect_block)
+    else if((curr_block >= NUM_DIRECT_BLOCKS) && (curr_block < indirect_max_size)){
+      int* loc = (int* ) inod->indirect + (curr_block - NUM_DIRECT_BLOCKS) + ( i % getBlockSize());
+      memcpy(&loc, &c, sizeof(char));
+    }
+    else if(curr_block >= indirect_max_size && curr_block < double_indirect_max_size)
     {
-      int dblock = inod->indirect[(i/block_size)-NUM_DIRECT_BLOCKS];
-      memcpy(&getDataStart() + dblock + i, &c, sizeof(char));
+      int* indir_block = (int*) inod->doubleIndirect + ((curr_block - (NUM_DIRECT_BLOCKS + (getBlockSize()/sizeof(int)))) / (getBlockSize() / sizeof(int)));
+      int* loc = (int* ) indir_block + (curr_block - (NUM_DIRECT_BLOCKS) + (getBlockSize() / sizeof(int))) + (i%getBlockSize());
+      memcpy(&loc, &c, sizeof(char));
     }
-    /* Double indirect blocks are fucking crazy
-    else if(current_block >= max_indirect_block && current_block < max_double_indirect_block)
-    {
-      int dblock = inod->doubleindirect[(i-max_indirect_block)/block_size];
-      int double_dblock = inod->
-      memcpy(&getDataStart() + dblock + i, &c, sizeof(char));
-    }
-    */
   }
 }
+
 
 void READ(char* fileName, uint start, uint num)
 {

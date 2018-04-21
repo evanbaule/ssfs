@@ -37,6 +37,9 @@ typedef struct {
   uint doubleIndirect;
 } inode;
 
+
+
+
 enum Tag {
 	create_tag,
 	import_tag,

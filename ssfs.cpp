@@ -148,7 +148,26 @@ uint getNumBlocks()
 
 int main(int argc, char const *argv[])
 {
-  /*Read all bytes of the DISK file into the DISK variable*/
+  /*Read all bytes of the DISK file into the DISK variable
+
+  if(i/getBlockSize() < NUM_DIRECT_BLOCKS)
+    {
+      //WARNING: NOT CHECKING FOR UNALLOCATED BLOCKS AT THIS POINT
+      memcpy(&inod->direct[curr_block] + (i%getBlockSize()), &c, sizeof(char)); 
+    }
+
+    else if(curr_block >= NUM_DIRECT_BLOCKS && curr_block < indirect_max_size) //write to first indir block
+    {
+      memcpy(&inod->indirect[curr_block - NUM_DIRECT_BLOCKS] + (i % getBlockSize(), &c, sizeof(char));
+    }
+
+    else if(curr_block >= max_indirect_size && curr_block < double_indirect_max_size)
+    {
+      int indir_block = inod->doubleIndirect[(curr_block - (NUM_DIRECT_BLOCKS + (getBlockSize()/sizeof(int)))) / (getBlockSize() / sizeof(int))];
+      memcpy(&indir_block[curr_block - (NUM_DIRECT_BLOCKS + (getBlockSize() / sizeof(int))) + (i%getBlockSize())], &c, sizeof(char));
+    }
+
+  */
   {
     ifstream ifs("DISK", ios::binary|ios::ate);
     ifstream::pos_type pos = ifs.tellg();
@@ -184,7 +203,7 @@ int main(int argc, char const *argv[])
     SCH_struct* str = new SCH_struct;
     str->requests = requests;
     str->lock = REQUESTS_LOCK;
-    pthread_create(&SCH_thread, NULL, SCH_run, (void*) str);
+    //pthread_create(&SCH_thread, NULL, SCH_run, (void*) str);
 	}
 }
 
