@@ -4,7 +4,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-
 int getBitmapSize()
 {
   return (getNumBlocks()/getBlockSize());
@@ -70,14 +69,12 @@ int getInode(char* file)
   return i;
 }
 
-/*
 inode* getIndexFromInode(int ind)
 {
   int inodeStart = getBlockSize() + ind*getBlockSize();
   inode* inod = ((inode*)(getDisk()+inodeStart));
   return inod;
 }
-*/
 
 int getStartOfDataBlocks()
 {
@@ -151,7 +148,7 @@ void IMPORT(char* ssfsFile, char* unixFilename){
       cerr << "Read the wrong number of bytes into read_buffer OR maybe reached end of the file. Not sure tbh - EMB" << endl;
       break;
     }
-   
+    
   }
 }
 
