@@ -157,6 +157,20 @@ char* readFromBlock(int block)
   return req.data;
 }
 
+void setByteMap(int block, bool flag)
+{
+  int blockByteLoc = 4*block/getBlockSize();
+  blockByteLoc+=(1+256);
+  block%=(getBlockSize()/4);
+
+  int* data = (int*) readFromBlock(blockByteLoc);
+  data[block] = flag;
+
+  writeToBlock(blockByteLoc, data);
+
+  delete data;
+}
+
 /*
 int getStartOfDataBlocks()
 {
@@ -242,7 +256,16 @@ void CAT(char* fileName){}
 
 void DELETE(char* fileName)
 {
-  
+  int ino = getInode(fileName);
+  if(ino == -1) return;
+
+
+  inode* inod = getInodeFromBlockNumber(ino);
+
+  for(int i =0;i<NUM_DIRECT_BLOCKS;i++)
+    {
+      setByteMap(inod->direct[i], false);
+    }
 }
 
 void WRITE(char* fileName, char c, uint start, uint num)
