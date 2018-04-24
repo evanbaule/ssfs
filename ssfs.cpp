@@ -26,6 +26,8 @@ int getBitmapSize()
   return (getNumBlocks()/getBlockSize());
 }
 
+int getUnusedBlock(){}
+
 void addRequest(disk_io_request* req)
 {
   pthread_mutex_lock(&REQUESTS_LOCK);
