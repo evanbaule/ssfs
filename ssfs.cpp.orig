@@ -157,20 +157,6 @@ char* readFromBlock(int block)
   return req.data;
 }
 
-void setByteMap(int block, bool flag)
-{
-  int blockByteLoc = 4*block/getBlockSize();
-  blockByteLoc+=(1+256);
-  block%=(getBlockSize()/4);
-
-  int* data = (int*) readFromBlock(blockByteLoc);
-  data[block] = flag;
-
-  writeToBlock(blockByteLoc, data);
-
-  delete data;
-}
-
 /*
 int getStartOfDataBlocks()
 {
@@ -258,24 +244,21 @@ void CAT(char* fileName){
 
 void DELETE(char* fileName)
 {
-  int ino = getInode(fileName);
-  if(ino == -1) return;
-
-
-  inode* inod = getInodeFromBlockNumber(ino);
-
-  for(int i =0;i<NUM_DIRECT_BLOCKS;i++)
-    {
-      setByteMap(inod->direct[i], false);
-    }
+  
 }
 
 void WRITE(char* fileName, char c, uint start, uint num)
 {
   int indirect_max_size = NUM_DIRECT_BLOCKS + getBlockSize()/sizeof(int); // # of blocks that can be refferenced by an indirect block
   int double_indirect_max_size = indirect_max_size + (getBlockSize()/sizeof(int)) * (getBlockSize()/sizeof(int));
+<<<<<<< HEAD
   
   int id = getInode(fileName);
+||||||| merged common ancestors
+  
+=======
+
+>>>>>>> 45fb5ecbb47f21838e9525858cc25748aafe0063
   inode* inod = getInodeFromBlockNumber(id);
 
   char* start_block;
