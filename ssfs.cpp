@@ -203,7 +203,7 @@ int main(int argc, char const *argv[])
     SCH_struct* str = new SCH_struct;
     str->requests = requests;
     str->lock = REQUESTS_LOCK;
-    //pthread_create(&SCH_thread, NULL, SCH_run, (void*) str);
+    pthread_create(&SCH_thread, NULL, SCH_run, (void*) str);
 	}
 }
 

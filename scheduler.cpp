@@ -147,8 +147,7 @@ void IMPORT(char* ssfsFile, char* unixFilename){
     {
       cerr << "Read the wrong number of bytes into read_buffer OR maybe reached end of the file. Not sure tbh - EMB" << endl;
       break;
-    }
-    
+    } 
   }
 }
 
@@ -227,26 +226,44 @@ void WRITE(char* fileName, char c, uint start, uint num)
   if(id == -1){
     cerr << "Error finding inode with fileName in func WRITE" << endl;
   }
+
   inode* inod = getInodeFromIndex(id);
+
+  char* start_block;
+  for(int i = start; i < getBlockSize(); i++)
+  {
+    memcpy(&start_block + i, &c, sizeof(char));
+  }
+  char* middle_block;
+  for(int i = 0; i < getBlockSize(); i++)
+  {
+    memcpy(&middle_block + i, &c, sizeof(char));
+  }
+  char* end_block;
+  for(int i = 0; i < (i+num) % getBlockSize(); i++)
+  {
+    memcpy(&end_block + i, &c, sizeof(char));
+  }
+
   for(int i = start; i < num; i++)
   {
     int curr_block = i/getBlockSize(); //for shorthand later on
-
     if(i/getBlockSize() < NUM_DIRECT_BLOCKS)
     {
       //WARNING: NOT CHECKING FOR UNALLOCATED BLOCKS AT THIS POINT
       int* loc = (int* ) inod->direct[curr_block] + (i%getBlockSize());
-      memcpy(&loc, &c, sizeof(char)); 
+      //DEPRECATED: memcpy(&loc, &c, sizeof(char)); 
     }
     else if((curr_block >= NUM_DIRECT_BLOCKS) && (curr_block < indirect_max_size)){
       int* loc = (int* ) inod->indirect + (curr_block - NUM_DIRECT_BLOCKS) + ( i % getBlockSize());
-      memcpy(&loc, &c, sizeof(char));
+      //DEPRECATED: memcpy(&loc, &c, sizeof(char));
     }
     else if(curr_block >= indirect_max_size && curr_block < double_indirect_max_size)
     {
       int* indir_block = (int*) inod->doubleIndirect + ((curr_block - (NUM_DIRECT_BLOCKS + (getBlockSize()/sizeof(int)))) / (getBlockSize() / sizeof(int)));
       int* loc = (int* ) indir_block + (curr_block - (NUM_DIRECT_BLOCKS) + (getBlockSize() / sizeof(int))) + (i%getBlockSize());
-      memcpy(&loc, &c, sizeof(char));
+
+      //DEPRECATED: memcpy(&loc, &c, sizeof(char));
     }
   }
 }
