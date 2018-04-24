@@ -52,6 +52,12 @@ typedef struct {
 
 int getUnusedBlock();
 
+int getFreeByteMapInBlock(int block);
+
+bool getByteMap(int block);
+
+void setByteMap(int block, bool flag);
+
 void CREATE(const char* filename);
 
 void IMPORT(const char* ssfsFile, const char* unixFilename);

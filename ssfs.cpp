@@ -26,7 +26,15 @@ int getBitmapSize()
   return (getNumBlocks()/getBlockSize());
 }
 
-int getUnusedBlock(){}
+int getUnusedBlock()
+{
+  for(int i=257;i<getNumBlocks();i++)
+    {
+      int asdf = getFreeByteMapInBlock(i);
+      if(asdf != -1) return asdf;
+    }
+  return -1;
+}
 
 void addRequest(disk_io_request* req)
 {
@@ -161,6 +169,41 @@ void setByteMap(int block, bool flag)
   writeToBlock(blockByteLoc, (char*) data);
 
   delete data;
+}
+
+bool getByteMap(int block)
+{
+  if(block < 1+256+getBitmapSize()) return 1;
+
+  int blockByteLoc = block/getBlockSize();
+  blockByteLoc+=(1+256);
+  block%=(getBlockSize());
+
+  char* data = (char*) readFromBlock(blockByteLoc);
+
+  bool tmp = data[block];
+  delete[] (char*)data;
+  return tmp;
+}
+
+int getFreeByteMapInBlock(int block)
+{
+  if(block < 1+256+getBitmapSize()) return -1;
+
+  int blockByteLoc = block/getBlockSize();
+  blockByteLoc+=(1+256);
+
+  char* data = (char*) readFromBlock(blockByteLoc);
+  int ret = -1;
+  for(int i =0;i<getBlockSize();i++)
+    {
+      if(data[i] == 0)
+        {
+          ret = i;
+          break;
+        }
+    }
+  return ret;
 }
 
 /*
