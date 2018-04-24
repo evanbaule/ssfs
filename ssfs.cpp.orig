@@ -251,8 +251,14 @@ void WRITE(char* fileName, char c, uint start, uint num)
 {
   int indirect_max_size = NUM_DIRECT_BLOCKS + getBlockSize()/sizeof(int); // # of blocks that can be refferenced by an indirect block
   int double_indirect_max_size = indirect_max_size + (getBlockSize()/sizeof(int)) * (getBlockSize()/sizeof(int));
+<<<<<<< HEAD
   
   int id = getInode(fileName);
+||||||| merged common ancestors
+  
+=======
+
+>>>>>>> 45fb5ecbb47f21838e9525858cc25748aafe0063
   inode* inod = getInodeFromBlockNumber(id);
 
   char* start_block;

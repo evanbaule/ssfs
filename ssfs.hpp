@@ -31,6 +31,7 @@ typedef struct
 	char* data; // Will either be a pointer to the SOURCE LOCATION to write FROM ||OR|| the DESTINATION LOCATION to read TO
   pthread_cond_t waitFor;
   pthread_mutex_t lock;
+  bool done;
 } disk_io_request;
 
 
@@ -85,7 +86,7 @@ typedef unsigned int uint;
 
 typedef struct
 {
-  queue<disk_io_request>* requests;
+  queue<disk_io_request*>* requests;
   pthread_mutex_t lock;
   pthread_mutex_t diskLock;
 } SCH_struct;
