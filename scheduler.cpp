@@ -132,11 +132,13 @@ void IMPORT(char* ssfsFile, char* unixFilename){
 
   /* Begins to read from unix file and inject blocks into the disk */
 
-  inode* inod = getInode(ssfsFile); //retrieve inode of file to write to OR empty file to begin writing to
-  if(inod == -1) //this condition may be off at this point (4/20 @13:42)
+  int ino = getInode(ssfsFile); //retrieve inode of file to write to OR empty file to begin writing to
+  if(ino == -1) //this condition may be off at this point (4/20 @13:42)
   {
-    inod = getEmptyInode();
+    ino = getEmptyInode();
   }
+
+  inode* inod = getInodeFromIndex(ino);
 
   //i represents the # of blocks read at point in loop
   char* read_buffer[block_size];
@@ -235,8 +237,8 @@ void WRITE(char* fileName, char c, uint start, uint num)
     if(i/getBlockSize() < NUM_DIRECT_BLOCKS)
     {
       //WARNING: NOT CHECKING FOR UNALLOCATED BLOCKS AT THIS POINT
-      int* loc = (int* ) inod->direct[curr_block] + (i%getBlockSize());
-      memcpy(&loc, &c, sizeof(char)); 
+      int* loc = (int* ) (inod->direct[curr_block] + (i%getBlockSize()));
+      memcpy(&loc, &c, sizeof(char));
     }
     else if((curr_block >= NUM_DIRECT_BLOCKS) && (curr_block < indirect_max_size)){
       int* loc = (int* ) inod->indirect + (curr_block - NUM_DIRECT_BLOCKS) + ( i % getBlockSize());
@@ -271,6 +273,7 @@ void SHUTDOWN()
 void LIST()
 {
   int i;
+  boolean found = 0;
   for(i = 0; i < getNumBlocks()/getBlockSize(); i++)
     {
       /*              metadata        num of inodes        */
@@ -299,6 +302,8 @@ void* SCH_run(void* vec)
       request req = requests->front();
       requests->pop();
       pthread_mutex_unlock(&lock);
+
+      
 
     }
 }

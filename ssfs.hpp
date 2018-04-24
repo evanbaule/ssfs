@@ -10,12 +10,22 @@
 #include <pthread.h>
 #include <sstream>
 
-#include "scheduler.hpp"
-
 
 /* Constants */
 #define MAX_FILENAME_SIZE 32
 #define NUM_DIRECT_BLOCKS 12
+
+/* File Meta - Data */
+typedef struct {
+  char fileName[MAX_FILENAME_SIZE]; // Max 32 chars
+  uint fileSize;
+  uint direct[NUM_DIRECT_BLOCKS];
+  uint indirect;
+  uint doubleIndirect;
+} inode;
+
+
+#include "scheduler.hpp"
 
 #define MIN_BLOCK_SIZE 128
 #define MAX_BLOCK_SIZE 512
@@ -28,15 +38,6 @@
 using namespace std;
 
 typedef unsigned int uint;
-
-/* File Meta - Data */
-typedef struct {
-  char fileName[MAX_FILENAME_SIZE]; // Max 32 chars
-  uint fileSize;
-  uint direct[NUM_DIRECT_BLOCKS];
-  uint indirect;
-  uint doubleIndirect;
-} inode;
 
 // Identifies the disk io operation to performed by a disk_io_request within scheduler workload buffer
 enum Operation {
