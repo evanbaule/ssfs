@@ -68,7 +68,7 @@ int getEmptyInode()
 
       if(data[0] != 0)
         found = 1;
-      delete(data);
+      delete[](data);
     }
   if(found) return i+1;
   else return -1;
@@ -81,7 +81,7 @@ int getDataStart()
 }
 */
 
-int getInode(char* file)
+int getInode(const char* file)
 {
   bool found=0;
   int i;
@@ -104,7 +104,7 @@ int getInode(char* file)
 
       if(strncmp(data, file, MAX_FILENAME_SIZE) == 0)
         found = 1;
-      delete(data);
+      delete[](data);
     }
   if(found) return i+1;
   else return -1;
@@ -179,7 +179,7 @@ int getStartOfDataBlocks()
 */
 
 
-void CREATE(char* filename)
+void CREATE(const char* filename)
 {
   if(filename[0] == 0)
   {
@@ -195,7 +195,7 @@ void CREATE(char* filename)
     }
 }
 
-void IMPORT(char* ssfsFile, char* unixFilename){
+void IMPORT(const char* ssfsFile, char* unixFilename){
   /* Initializing */
   char* disk = getDisk();
   uint block_size = getBlockSize();
@@ -217,7 +217,7 @@ void IMPORT(char* ssfsFile, char* unixFilename){
     cerr << "Failed to read file size from fstat(fd, &sb) in func IMPORT" << endl;
     return;
   }
-  else 
+  else
   {
     filesize = sb.st_size;
   }
@@ -252,9 +252,9 @@ void IMPORT(char* ssfsFile, char* unixFilename){
   }
 }
 
-void CAT(char* fileName){}
+void CAT(const char* fileName){}
 
-void DELETE(char* fileName)
+void DELETE(const char* fileName)
 {
   int ino = getInode(fileName);
   if(ino == -1) return;
@@ -268,7 +268,7 @@ void DELETE(char* fileName)
     }
 }
 
-void WRITE(char* fileName, char c, uint start, uint num)
+void WRITE(const char* fileName, char c, uint start, uint num)
 {
   int indirect_max_size = NUM_DIRECT_BLOCKS + getBlockSize()/sizeof(int); // # of blocks that can be refferenced by an indirect block
   int double_indirect_max_size = indirect_max_size + (getBlockSize()/sizeof(int)) * (getBlockSize()/sizeof(int));
@@ -338,7 +338,7 @@ void WRITE(char* fileName, char c, uint start, uint num)
       {
         writeToBlock(destination_block_num, middle_block);
       }
-      delete indirect_block;
+      delete[] indirect_block;
     }
     else if(curr_block >= indirect_max_size && curr_block < double_indirect_max_size)
     {
@@ -357,8 +357,8 @@ void WRITE(char* fileName, char c, uint start, uint num)
         writeToBlock(destination_block_num, middle_block);
       }
 
-      delete double_indirect_block;
-      delete indirect_block;
+      delete[] double_indirect_block;
+      delete[] indirect_block;
       */
     }
   }
@@ -366,7 +366,7 @@ void WRITE(char* fileName, char c, uint start, uint num)
 }
 
 
-void READ(char* fileName, uint start, uint num)
+void READ(const char* fileName, uint start, uint num)
 {
   char* bytes = new char[num];
   inode* inod = getInodeFromBlockNumber(getInode(fileName));
@@ -413,37 +413,37 @@ process_ops(void* file_arg)
 
     if(command == "CREATE")
       {
-        char* fileName;
+        string fileName;
         ss >> fileName;
 
-        CREATE(fileName);
+        CREATE(fileName.c_str());
       }
     else if (command == "IMPORT")
       {
-        char* file1;
-        char* file2;
+        string file1;
+        string file2;
         ss >> file1;
         ss >> file2;
 
-        IMPORT(file1, file2);
+        IMPORT(file1.c_str(), file2.c_str());
       }
     else if (command == "CAT")
       {
-        char* file1;
+        string file1;
         ss >> file1;
 
-        CAT(file1);
+        CAT(file1.c_str());
       }
     else if (command == "DELETE")
       {
-        char* file1;
+        string file1;
         ss >> file1;
 
-        DELETE(file1);
+        DELETE(file1.c_str());
       }
     else if (command == "WRITE")
       {
-        char* file1;
+        string file1;
         char c;
         uint start;
         uint num;
@@ -452,11 +452,11 @@ process_ops(void* file_arg)
         ss >> start;
         ss >> num;
 
-        WRITE(file1, c, start, num);
+        WRITE(file1.c_str(), c, start, num);
       }
     else if (command == "READ")
       {
-        char* file1;
+        string file1;
         uint start;
         uint num;
 
@@ -464,7 +464,7 @@ process_ops(void* file_arg)
         ss >> start;
         ss >> num;
 
-        READ(file1, start, num);
+        READ(file1.c_str(), start, num);
       }
     else if (command == "LIST")
       {
