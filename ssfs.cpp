@@ -213,7 +213,9 @@ void IMPORT(char* ssfsFile, char* unixFilename){
   }
 }
 
-void CAT(char* fileName){}
+void CAT(char* fileName){
+  char* 
+}
 
 /* Feeds 12 + blocksize/sizeof(int) + (blocksize/sizeof(int))^2 requests into the scheduler buffer to 'zero-out' the entirety of a file */
 void DELETE(char* fileName)
@@ -284,6 +286,7 @@ void WRITE(char* fileName, char c, uint start, uint num)
   int indirect_max_size = NUM_DIRECT_BLOCKS + getBlockSize()/sizeof(int); // # of blocks that can be refferenced by an indirect block
   int double_indirect_max_size = indirect_max_size + (getBlockSize()/sizeof(int)) * (getBlockSize()/sizeof(int));
   
+  int id = getInode(fileName);
   inode* inod = getInodeFromBlockNumber(id);
 
   char* start_block;
@@ -311,75 +314,68 @@ void WRITE(char* fileName, char c, uint start, uint num)
   for(int i = 0; i < last_block; i++)
   {
     int curr_block = i/getBlockSize();
-    if(i/getBlockSize() < NUM_DIRECT_BLOCKS)
+    if(curr_block < NUM_DIRECT_BLOCKS)
     {
-
-      disk_io_request req;
-      char* data = char[getBlockSize()];
-      req.block_number = inod->direct[curr_block]
-      req.op = io_WRITE;
+      //If we're writing to the first block we start @ \start
       if(curr_block == 0)
       {
-        req.data = first_block;
+        writeToBlock(inod->direct[curr_block], start_block);
       }
-      else if(curr_block == last_block)
+      //If we only wrote one block
+      if(last_block == 0)
       {
-        req.data = end_block;
-        addRequest(req);
+        break;
+      }
+      //If we're writing to the last block
+      if(curr_block == last_block)
+      {
+        writeToBlock(inod->direct[curr_block], end_block);
+        break;
+      }
+      //Writing to some block full of &c*blocksize in the middle
+      else 
+      {
+        writeToBlock(inod->direct[curr_block], middle_block);
+      }
+    }
+    else if((curr_block >= NUM_DIRECT_BLOCKS) && (curr_block < (indirect_max_size))){
+      int* indirect_block = (int*) readFromBlock(inod->indirect);
+      int destination_block_num = indirect_block[curr_block - NUM_DIRECT_BLOCKS];
+
+      if(curr_block == last_block)
+      {
+        writeToBlock(destination_block_num, end_block);
         break;
       }
       else 
       {
-        //Everything else but first block
-        req.data = middle_block;
+        writeToBlock(destination_block_num, middle_block);
       }
-      addRequest(req);
-    }
-    else if((curr_block >= NUM_DIRECT_BLOCKS) && (curr_block < (indirect_max_size)){
-      //request indirect block
-      //access destination =  (int*) indirect[(curr_block - num_direct)]
-      // req.block_num = dest
-      // req.op = write;
-
-
-      int destination_block_num = inod->indirect + (curr_block - NUM_DIRECT_BLOCKS);
-      disk_io_request req;
-      char* data = char[getBlockSize()];
-      req.block_number = destination_block_num;
-      req.op = io_WRITE;
-      if(curr_block == last_block)
-      {
-        req.data = end_block;
-        addRequest(req);
-        break;
-      }
-      else
-      {
-        req.data = middle_block;
-        addRequest(req);
-      }
+      delete indirect_block;
     }
     else if(curr_block >= indirect_max_size && curr_block < double_indirect_max_size)
     {
-      int* indir_block = (int*) inod->doubleIndirect + ((curr_block - (NUM_DIRECT_BLOCKS + (getBlockSize()/sizeof(int)))) / (getBlockSize() / sizeof(int)));
+      /*
+      int* double_indirect_block = (int*) readFromBlock(inod->doubleIndirect);
+      int indir_block_num = double_indirect_block[curr_block - (NUM_DIRECT_BLOCKS + (getBlockSize()/sizeof(int)))) / (getBlockSize() / sizeof(int)))];
+      int* indirect_block = (int*) readFromBlock(indir_block_num);
       int destination_block_num = indir_block + (curr_block - indirect_max_size);
-      disk_io_request req;
-      char* data = char[getBlockSize()];
-      req.block_number = destination_block_num;
-      req.op = io_WRITE;
       if(curr_block == last_block)
       {
-        req.data = end_block;
-        addRequest(req);
+        writeToBlock(destination_block_num, end_block);
         break;
       }
       else 
       {
-        req.data = middle_block;
-        addRequest(req);
+        writeToBlock(destination_block_num, middle_block);
       }
+
+      delete double_indirect_block;
+      delete indirect_block;
+      */
     }
   }
+  delete inod;
 }
 
 
