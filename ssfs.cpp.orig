@@ -223,6 +223,7 @@ void IMPORT(const char* ssfsFile, const char* unixFilename){
   DELETE(ssfsFile);
   CREATE(ssfsFile);
 
+<<<<<<< HEAD
   int inodeBlock = getInode(ssfsFile);
 
   inode* ino = getInodeFromBlockNumber(inodeBlock);
@@ -232,6 +233,12 @@ void IMPORT(const char* ssfsFile, const char* unixFilename){
 
   int* doubleIndirs1 = new int[getBlockSize()/4]();
 
+||||||| merged common ancestors
+  inode* inod = getInodeFromBlockNumber(ino);
+
+=======
+  inode* inod = getInodeFromBlockNumber(ino);
+>>>>>>> e61fa4cb881795cbaf0931b17ad85aa53449e982
   //i represents the # of blocks read at point in loop
   char* read_buffer = new char[block_size]();
   for(int i = 0; i < (filesize + block_size)/block_size; i++) //add block size to filesize to avoid truncating
