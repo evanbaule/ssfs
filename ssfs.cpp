@@ -84,7 +84,7 @@ int getInode(char* file)
   return i;
 }
 
-inode* getIndexFromInode(int ind)
+inode* getInodeFromIndex(int ind)
 {
   int inodeStart = getBlockSize() + ind*getBlockSize();
   inode* inod = ((inode*)(getDisk()+inodeStart));
