@@ -13,7 +13,7 @@ pthread_mutex_t DISK_LOCK = PTHREAD_MUTEX_INITIALIZER;
 
 pthread_mutex_t REQUESTS_LOCK = PTHREAD_MUTEX_INITIALIZER;
 
-queue<disk_io_request>* requests;
+queue<disk_io_request*>* requests;
 
 bool stop = 0;
 
@@ -36,6 +36,13 @@ int getFreeBlock()
   }
   cerr << "disk is fucking full af" << endl;
   return -1;
+}
+
+void addRequest(disk_io_request* req)
+{
+  pthread_mutex_lock(&REQUESTS_LOCK);
+  requests->push(req);
+  pthread_mutex_unlock(&REQUESTS_LOCK);
 }
 
 int getEmptyInode()
@@ -95,7 +102,7 @@ int getInode(char* file)
       while(!req.done)
         pthread_cond_wait(&req.waitFor, &req.lock);
 
-      if(strncmp(data, file, MAX_FILE_NAME) == 0)
+      if(strncmp(data, file, MAX_FILENAME_SIZE) == 0)
         found = 1;
       delete(data);
     }
@@ -123,18 +130,40 @@ inode* getInodeFromBlockNumber(int ind)
   return (inode*) data;
 }
 
+void writeToBlock(int block, char* data)
+{
+  disk_io_request req;
+  req.op = io_WRITE;
+  req.data = data;
+  req.block_number = block;
+  addRequest(&req);
+}
+
+char* readFromBlock(int block)
+{
+  disk_io_request req;
+  req.op = io_READ;
+  req.data = new char[getBlockSize()]();
+  req.block_number = block;
+
+  req.waitFor = PTHREAD_COND_INITIALIZER;
+  req.lock = PTHREAD_MUTEX_INITIALIZER;
+
+  while(!req.done)
+    pthread_cond_wait(&req.waitFor, &req.lock);
+
+  addRequest(&req);
+
+  return req.data;
+}
+
 /*
 int getStartOfDataBlocks()
 {
   return getBlockSize() + MAX_INODES*getBlockSize() + ((getBitmapSize()*4)/getBlockSize() + ((getBitmapSize()*4)%getBlockSize()!=0))*getBlockSize();
 }
 */
-void addRequest(disk_io_request* req)
-{
-  pthread_mutex_lock(&REQUESTS_LOCK);
-  requests->push(req);
-  pthread_mutex_unlock(&REQUESTS_LOCK);
-}
+
 
 void CREATE(char* filename)
 {
@@ -145,13 +174,10 @@ void CREATE(char* filename)
   int inod = getEmptyInode();
   if(inod != -1)
     {
-      disk_io_request req;
-      req.op = io_WRITE;
       char* data = new char[getBlockSize()]();
       memcpy(data, filename, strlen(filename));
-      req.data = data;
-      req.blockNumber = inod;
-      addRequest(&req);
+
+      writeToBlock(inod, data);
     }
 }
 
@@ -209,81 +235,21 @@ void IMPORT(char* ssfsFile, char* unixFilename){
       cerr << "Read the wrong number of bytes into read_buffer OR maybe reached end of the file. Not sure tbh - EMB" << endl;
       break;
     }
-    
   }
 }
 
 void CAT(char* fileName){}
 
-/* Feeds 12 + blocksize/sizeof(int) + (blocksize/sizeof(int))^2 requests into the scheduler buffer to 'zero-out' the entirety of a file */
 void DELETE(char* fileName)
 {
-  int id = getInode(fileName);
-  if(id == -1){
-    cerr << "Error finding inode with fileName in func DELETE" << endl;
-  }
-  inode* inod = getInodeFromIndex(id);
-  inod->fileName[0] = 0;
-  inod->fileSize = 0;
-
-  for(int i =0;i<NUM_DIRECT_BLOCKS;i++)
-    {
-      int dir = inod->direct[i];
-
-      /*
-      Operation op = io_WRITE;
-      disk_io_request req;
-      req.block_number = dir;
-      req.op = op;
-      req.data = 0;
-      requests->push(req);
-      */
-
-      *(getDisk() + getBlockSize() + MAX_INODES*getBlockSize() + (dir)) = 0;
-    }
-
-  int* indirect = (int*) (getDisk() + inod->indirect*getBlockSize());
-  for(int i =0;i<getBlockSize()/4;i++)
-    {
-
-      /*
-      Operation op = io_WRITE;
-      disk_io_request req;
-      req.block_number = indirect[i];
-      req.op = op;
-      req.data = 0;
-      requests->push(req);
-      */
-
-      *(getDisk() + getBlockSize() + MAX_INODES*getBlockSize() + (indirect[i])) = 0;
-    }
-
-  int* doubleindirect = (int*) (getDisk() + inod->doubleIndirect*getBlockSize());
-  for(int i =0;i<getBlockSize()/4;i++)
-    {
-      int* indirect2 = (int*) (getDisk() + doubleindirect[i]*getBlockSize());
-      for(int j=0;j<getBlockSize()/4;j++)
-        {
-
-          /*
-          Operation op = io_WRITE;
-          disk_io_request req;
-          req.block_number = indirect[i];
-          req.op = op;
-          req.data = 0;
-          requests->push(req);
-          */
-
-          *(getDisk() + getBlockSize() + MAX_INODES*getBlockSize() + (indirect2[i])) = 0;
-        }
-    }
+  
 }
 
 void WRITE(char* fileName, char c, uint start, uint num)
 {
   int indirect_max_size = NUM_DIRECT_BLOCKS + getBlockSize()/sizeof(int); // # of blocks that can be refferenced by an indirect block
   int double_indirect_max_size = indirect_max_size + (getBlockSize()/sizeof(int)) * (getBlockSize()/sizeof(int));
-  
+
   inode* inod = getInodeFromBlockNumber(id);
 
   char* start_block;
