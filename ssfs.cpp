@@ -239,19 +239,19 @@ void DELETE(char* fileName)
 void WRITE(char* fileName, char c, uint start, uint num)
 {
   int indirect_max_size = NUM_DIRECT_BLOCKS + getBlockSize()/sizeof(int); // # of blocks that can be refferenced by an indirect block
-  int double_indirect_max_size = (getBlockSize()/sizeof(int)) * (getBlockSize()/sizeof(int));
-
-  int id = getInode(fileName);
-  if(id == -1){
-    cerr << "Error finding inode with fileName in func WRITE" << endl;
-  }
-
-  inode* inod = getInodeFromIndex(id);
+  int double_indirect_max_size = indirect_max_size + (getBlockSize()/sizeof(int)) * (getBlockSize()/sizeof(int));
+  
+  inode* inod = getInodeFromBlockNumber(id);
 
   char* start_block;
   for(int i = start; i < getBlockSize(); i++)
   {
     memcpy(&start_block + i, &c, sizeof(char));
+    //Should cover corner case where (start + num) < blocksize so we only write 1 block */
+    if(i == (start + num))
+    {
+      break;
+    }
   }
   char* middle_block;
   for(int i = 0; i < getBlockSize(); i++)
@@ -264,25 +264,77 @@ void WRITE(char* fileName, char c, uint start, uint num)
     memcpy(&end_block + i, &c, sizeof(char));
   }
 
-  for(int i = start; i < num; i++)
+  int last_block = (start + num)/getBlockSize();
+  for(int i = 0; i < last_block; i++)
   {
-    int curr_block = i/getBlockSize(); //for shorthand later on
+    int curr_block = i/getBlockSize();
     if(i/getBlockSize() < NUM_DIRECT_BLOCKS)
     {
-      //WARNING: NOT CHECKING FOR UNALLOCATED BLOCKS AT THIS POINT
-      int* loc = (int* ) inod->direct[curr_block] + (i%getBlockSize());
-      //DEPRECATED: memcpy(&loc, &c, sizeof(char)); 
+
+      disk_io_request req;
+      char* data = char[getBlockSize()];
+      req.block_number = inod->direct[curr_block]
+      req.op = io_WRITE;
+      if(curr_block == 0)
+      {
+        req.data = first_block;
+      }
+      else if(curr_block == last_block)
+      {
+        req.data = end_block;
+        addRequest(req);
+        break;
+      }
+      else 
+      {
+        //Everything else but first block
+        req.data = middle_block;
+      }
+      addRequest(req);
     }
-    else if((curr_block >= NUM_DIRECT_BLOCKS) && (curr_block < indirect_max_size)){
-      int* loc = (int* ) inod->indirect + (curr_block - NUM_DIRECT_BLOCKS) + ( i % getBlockSize());
-      //DEPRECATED: memcpy(&loc, &c, sizeof(char));
+    else if((curr_block >= NUM_DIRECT_BLOCKS) && (curr_block < (indirect_max_size)){
+      //request indirect block
+      //access destination =  (int*) indirect[(curr_block - num_direct)]
+      // req.block_num = dest
+      // req.op = write;
+
+
+      int destination_block_num = inod->indirect + (curr_block - NUM_DIRECT_BLOCKS);
+      disk_io_request req;
+      char* data = char[getBlockSize()];
+      req.block_number = destination_block_num;
+      req.op = io_WRITE;
+      if(curr_block == last_block)
+      {
+        req.data = end_block;
+        addRequest(req);
+        break;
+      }
+      else
+      {
+        req.data = middle_block;
+        addRequest(req);
+      }
     }
     else if(curr_block >= indirect_max_size && curr_block < double_indirect_max_size)
     {
       int* indir_block = (int*) inod->doubleIndirect + ((curr_block - (NUM_DIRECT_BLOCKS + (getBlockSize()/sizeof(int)))) / (getBlockSize() / sizeof(int)));
-      int* loc = (int* ) indir_block + (curr_block - (NUM_DIRECT_BLOCKS) + (getBlockSize() / sizeof(int))) + (i%getBlockSize());
-
-      //DEPRECATED: memcpy(&loc, &c, sizeof(char));
+      int destination_block_num = indir_block + (curr_block - indirect_max_size);
+      disk_io_request req;
+      char* data = char[getBlockSize()];
+      req.block_number = destination_block_num;
+      req.op = io_WRITE;
+      if(curr_block == last_block)
+      {
+        req.data = end_block;
+        addRequest(req);
+        break;
+      }
+      else 
+      {
+        req.data = middle_block;
+        addRequest(req);
+      }
     }
   }
 }
