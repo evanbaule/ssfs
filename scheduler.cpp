@@ -154,6 +154,7 @@ void IMPORT(char* ssfsFile, char* unixFilename){
 
 void CAT(char* fileName){}
 
+/* Feeds 12 + blocksize/sizeof(int) + (blocksize/sizeof(int))^2 requests into the scheduler buffer to 'zero-out' the entirety of a file */
 void DELETE(char* fileName)
 {
   int id = getInode(fileName);
@@ -167,12 +168,32 @@ void DELETE(char* fileName)
   for(int i =0;i<NUM_DIRECT_BLOCKS;i++)
     {
       int dir = inod->direct[i];
+
+      /*
+      Operation op = io_WRITE;
+      disk_io_request req;
+      req.block_number = dir;
+      req.op = op;
+      req.data = 0;
+      requests->push(req);
+      */
+
       *(getDisk() + getBlockSize() + MAX_INODES*getBlockSize() + (dir)) = 0;
     }
 
   int* indirect = (int*) (getDisk() + inod->indirect*getBlockSize());
   for(int i =0;i<getBlockSize()/4;i++)
     {
+
+      /*
+      Operation op = io_WRITE;
+      disk_io_request req;
+      req.block_number = indirect[i];
+      req.op = op;
+      req.data = 0;
+      requests->push(req);
+      */
+
       *(getDisk() + getBlockSize() + MAX_INODES*getBlockSize() + (indirect[i])) = 0;
     }
 
@@ -182,6 +203,16 @@ void DELETE(char* fileName)
       int* indirect2 = (int*) (getDisk() + doubleindirect[i]*getBlockSize());
       for(int j=0;j<getBlockSize()/4;j++)
         {
+
+          /*
+          Operation op = io_WRITE;
+          disk_io_request req;
+          req.block_number = indirect[i];
+          req.op = op;
+          req.data = 0;
+          requests->push(req);
+          */
+
           *(getDisk() + getBlockSize() + MAX_INODES*getBlockSize() + (indirect2[i])) = 0;
         }
     }

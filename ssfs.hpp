@@ -38,7 +38,6 @@ typedef struct {
   uint doubleIndirect;
 } inode;
 
-
 // Identifies the disk io operation to performed by a disk_io_request within scheduler workload buffer
 enum Operation {
 	io_READ,
