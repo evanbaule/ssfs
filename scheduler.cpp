@@ -291,19 +291,28 @@ void LIST()
 void* SCH_run(void* vec)
 {
   SCH_struct* str = (SCH_struct*) vec;
-  queue<request>* requests = str->requests;
+  queue<disk_io_request>* requests = str->requests;
   pthread_mutex_t lock = str->lock;
+  pthread_mutex_t diskLock = str->diskLock;
 
   while(1)
     {
       if(shut && requests->size()==0)break;
 
       pthread_mutex_lock(&lock);
-      request req = requests->front();
+      disk_io_request req = requests->front();
       requests->pop();
       pthread_mutex_unlock(&lock);
 
-      
-
+      pthread_mutex_lock(&diskLock);
+      if(req.op == io_READ)
+        {
+          memcpy(req.data, getDisk()+req.block_number*getBlockSize(), getBlockSize());
+        }
+      else if (req.op == io_WRITE)
+        {
+          memcpy(getDisk()+req.block_number*getBlockSize(), req.data, getBlockSize());
+        }
+      pthread_mutex_unlock(&diskLock);
     }
 }
