@@ -195,7 +195,7 @@ void CREATE(const char* filename)
     }
 }
 
-void IMPORT(const char* ssfsFile, char* unixFilename){
+void IMPORT(const char* ssfsFile, const char* unixFilename){
   /* Initializing */
   char* disk = getDisk();
   uint block_size = getBlockSize();
