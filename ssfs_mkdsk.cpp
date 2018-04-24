@@ -14,8 +14,8 @@ int main(int argc, char** argv)
   ofstream fout;
   fout.open(diskName, ios::binary | ios::out);
   char a = 0;
-  fout << numBlocks;
-  fout << blockSize;
+  fout.write((char*)&numBlocks, 4);
+  fout.write((char*)&blockSize, 4);
   for(int i = sizeof(numBlocks)+sizeof(blockSize); i < numBlocks * blockSize;i++)
     fout.write(&a, 1);
 

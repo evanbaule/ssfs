@@ -15,7 +15,7 @@ pthread_mutex_t CONSOLE_OUT_LOCK = PTHREAD_MUTEX_INITIALIZER;
 
 pthread_mutex_t REQUESTS_LOCK = PTHREAD_MUTEX_INITIALIZER;
 
-queue<disk_io_request*>* requests;
+queue<disk_io_request*>* requests = new queue<disk_io_request*>;
 
 bool stop = 0;
 
@@ -55,6 +55,7 @@ int getEmptyInode()
       uint blockNumber = i+1;
       req.data = data;
       req.block_number = blockNumber;
+      req.done = 0;
 
       req.waitFor = PTHREAD_COND_INITIALIZER;
       req.lock = PTHREAD_MUTEX_INITIALIZER;
@@ -91,14 +92,22 @@ int getInode(const char* file)
       uint blockNumber = i+1;
       req.data = data;
       req.block_number = blockNumber;
+      req.done = 0;
 
-      req.waitFor = PTHREAD_COND_INITIALIZER;
-      req.lock = PTHREAD_MUTEX_INITIALIZER;
+      pthread_mutex_init( &req.lock, NULL);
+      pthread_cond_init( &req.waitFor, NULL);
 
       addRequest(&req);
 
-      while(!req.done)
+      pthread_mutex_lock(&req.lock);
+      while(!req.done){
+        cout << "befire" << endl;
         pthread_cond_wait(&req.waitFor, &req.lock);
+        cout << "after" << endl;
+      }
+      pthread_mutex_unlock(&req.lock);
+
+      
 
       if(strncmp(data, file, MAX_FILENAME_SIZE) == 0)
         found = 1;
@@ -121,6 +130,7 @@ inode* getInodeFromBlockNumber(int ind)
   req.lock = PTHREAD_MUTEX_INITIALIZER;
 
   addRequest(&req);
+
 
   while(!req.done)
     pthread_cond_wait(&req.waitFor, &req.lock);
@@ -607,6 +617,8 @@ process_ops(void* file_arg)
     string command;
     ss >> command;
 
+    cout << command << endl;
+
     if(command == "CREATE")
       {
         string fileName;
@@ -680,12 +692,12 @@ getDisk()
   return DISK;
 }
 
-uint getBlockSize()
+int getBlockSize()
 {
   return ((int*) DISK)[1];
 }
 
-uint getNumBlocks()
+int getNumBlocks()
 {
   return ((int*) DISK)[0];
 }
@@ -749,5 +761,6 @@ int main(int argc, char const *argv[])
     str->lock = REQUESTS_LOCK;
     pthread_create(&SCH_thread, NULL, SCH_run, (void*) str);
 	}
+  while(1);
 }
 

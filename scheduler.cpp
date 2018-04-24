@@ -11,10 +11,10 @@ void* SCH_run(void* vec)
   pthread_mutex_t lock = str->lock;
   pthread_mutex_t diskLock = str->diskLock;
 
+  sleep(1);
+
   while(1)
     {
-      if(requests->size()==0)break;
-
       pthread_mutex_lock(&lock);
       disk_io_request* req = requests->front();
       requests->pop();
@@ -25,6 +25,7 @@ void* SCH_run(void* vec)
         {
           pthread_mutex_lock(&req->lock);
           memcpy(req->data, getDisk()+req->block_number*getBlockSize(), getBlockSize());
+          req->done = 1;
           pthread_cond_signal(&req->waitFor);
           pthread_mutex_unlock(&req->lock);
         }
@@ -34,7 +35,12 @@ void* SCH_run(void* vec)
           delete(req->data);
         }
       pthread_mutex_unlock(&diskLock);
+
     }
-    
-    return NULL;
+
+  int fd = open("DISK", O_WRONLY);
+
+  write(fd, getDisk(), getNumBlocks()*getBlockSize());
+
+  return NULL;
 }

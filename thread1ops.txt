@@ -1,6 +1,2 @@
-CAT a.txt
-CAT a.txt
-CAT a.txt
-CAT a.txt
-CAT a.txt
-CAT a.txt
+IMPORT scheduler.hpp scheduler.hpp
+CAT scheduler.hpp

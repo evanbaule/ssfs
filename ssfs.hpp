@@ -99,8 +99,8 @@ typedef struct
   pthread_mutex_t diskLock;
 } SCH_struct;
 
-uint getBlockSize();
-uint getNumBlocks();
+int getBlockSize();
+int getNumBlocks();
 char* getDisk();
 
 void shutdown();
