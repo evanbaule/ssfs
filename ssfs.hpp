@@ -50,6 +50,8 @@ typedef struct {
   uint doubleIndirect;
 } inode;
 
+int getUnusedBlock();
+
 void CREATE(const char* filename);
 
 void IMPORT(const char* ssfsFile, const char* unixFilename);

@@ -24,20 +24,6 @@ int getBitmapSize()
   return (getNumBlocks()/getBlockSize());
 }
 
-int getFreeBlock()
-{
-  char* disk = getDisk();
-  uint byteOffs =  getBlockSize() + MAX_INODES*getBlockSize() + ((getBitmapSize()*4)/getBlockSize() + ((getBitmapSize()*4)%getBlockSize()!=0))*getBlockSize();
-  for(unsigned int i = byteOffs; i < byteOffs + getBitmapSize(); i++)
-  {
-    if(disk[i] == 0)
-      disk[byteOffs + i] = 1;
-      return i;
-  }
-  cerr << "disk is fucking full af" << endl;
-  return -1;
-}
-
 void addRequest(disk_io_request* req)
 {
   pthread_mutex_lock(&REQUESTS_LOCK);
@@ -159,6 +145,8 @@ char* readFromBlock(int block)
 
 void setByteMap(int block, bool flag)
 {
+  if(block < 1+256+getBitmapSize()) return;
+
   int blockByteLoc = 4*block/getBlockSize();
   blockByteLoc+=(1+256);
   block%=(getBlockSize()/4);
@@ -202,7 +190,7 @@ void IMPORT(const char* ssfsFile, const char* unixFilename){
   uint num_blocks = getNumBlocks();
   uint byteOffs =  block_size + MAX_INODES*block_size + (num_blocks/block_size);
   uint max_file_size = block_size * (1 + NUM_DIRECT_BLOCKS + (block_size/sizeof(int)) + ((block_size*block_size)/(sizeof(int)*sizeof(int)))); //max number of blocks we can hold in a single file * num of bytes in a block
-  
+
   int fd;
   if((fd = open(unixFilename, O_RDONLY)) == -1)
   {
@@ -231,16 +219,20 @@ void IMPORT(const char* ssfsFile, const char* unixFilename){
 
   /* Begins to read from unix file and inject blocks into the disk */
 
-  int ino = getInode(ssfsFile); //retrieve inode of file to write to OR empty file to begin writing to
-  if(ino == -1) //this condition may be off at this point (4/20 @13:42)
-  {
-    ino = getEmptyInode();
-  }
+  DELETE(ssfsFile);
+  CREATE(ssfsFile);
 
-  inode* inod = getInodeFromBlockNumber(ino);
+  int inodeBlock = getInode(ssfsFile);
+
+  inode* ino = getInodeFromBlockNumber(inodeBlock);
+  ino->fileSize = filesize;
+
+  int* indirs = new int[getBlockSize()/4]();
+
+  int* doubleIndirs1 = new int[getBlockSize()/4]();
 
   //i represents the # of blocks read at point in loop
-  char* read_buffer[block_size];
+  char* read_buffer = new char[block_size]();
   for(int i = 0; i < (filesize + block_size)/block_size; i++) //add block size to filesize to avoid truncating
   {
     int bytes_read;
@@ -249,7 +241,50 @@ void IMPORT(const char* ssfsFile, const char* unixFilename){
       cerr << "Read the wrong number of bytes into read_buffer OR maybe reached end of the file. Not sure tbh - EMB" << endl;
       break;
     }
+
+    if(i < NUM_DIRECT_BLOCKS)
+      {
+        ino->direct[i] = getUnusedBlock();
+        writeToBlock(ino->direct[i], read_buffer);
+      }
+    else if (i < NUM_DIRECT_BLOCKS + getBlockSize()/4)
+      {
+        if(ino->indirect == 0)
+          ino->indirect = getUnusedBlock();
+        indirs[i-NUM_DIRECT_BLOCKS] = getUnusedBlock();
+        writeToBlock(indirs[i-NUM_DIRECT_BLOCKS], read_buffer);
+      }
+    else
+      {
+        if(ino->doubleIndirect == 0)
+          ino->doubleIndirect = getUnusedBlock();
+
+        int index = i-(NUM_DIRECT_BLOCKS + getBlockSize()/4);
+        int doubIndex =  index / (getBlockSize()/4);
+        int indirIndex = index % (getBlockSize()/4);
+
+        int* doubInt = (int*) readFromBlock(ino->doubleIndirect);
+        if(doubInt[doubIndex] == 0)
+          doubInt[doubIndex] = getUnusedBlock();
+
+        int* indirectBlock = (int*) readFromBlock(doubInt[doubIndex]);
+        indirectBlock[indirIndex] = getUnusedBlock();
+
+        writeToBlock(indirectBlock[indirIndex], read_buffer);
+
+        writeToBlock(doubInt[doubIndex],  (char*) indirectBlock);
+
+        writeToBlock(ino->doubleIndirect, (char*) doubInt);
+      }
   }
+
+  writeToBlock(ino->indirect, (char*) indirs);
+
+  writeToBlock(inodeBlock, (char*) ino);
+
+  delete[] indirs;
+  delete[] read_buffer;
+  delete[] (char*) ino;
 }
 
 void CAT(const char* fileName){}
@@ -262,10 +297,38 @@ void DELETE(const char* fileName)
 
   inode* inod = getInodeFromBlockNumber(ino);
 
+  inod->fileSize = 0;
+
   for(int i =0;i<NUM_DIRECT_BLOCKS;i++)
     {
       setByteMap(inod->direct[i], false);
     }
+
+  int* indirect_block = (int*) readFromBlock(inod->indirect);
+  for(int i =0;i<getBlockSize()/4;i++)
+    {
+      setByteMap(indirect_block[i], false);
+    }
+
+  delete[] (char*) indirect_block;
+
+  int* dindirect_block = (int*) readFromBlock(inod->doubleIndirect);
+  for(int i =0;i<getBlockSize()/4;i++)
+    {
+      int* indir_block = (int*) readFromBlock(dindirect_block[i]);
+      for(int j=0;j<getBlockSize()/4;j++)
+        {
+          setByteMap(indir_block[j], false);
+        }
+      delete[] (char*) indir_block;
+    }
+  delete[] (char*) dindirect_block;
+
+  delete[] (char*) inod;
+
+  char* asdf = new char[getBlockSize()]();
+  writeToBlock(ino, asdf);
+  delete[] asdf;
 }
 
 void WRITE(const char* fileName, char c, uint start, uint num)
