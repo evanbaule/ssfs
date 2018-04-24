@@ -35,4 +35,6 @@ void* SCH_run(void* vec)
         }
       pthread_mutex_unlock(&diskLock);
     }
+    
+    return NULL;
 }

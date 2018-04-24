@@ -11,6 +11,8 @@ char* DISK;
 /*Any access to the DISK array should be locked by this*/
 pthread_mutex_t DISK_LOCK = PTHREAD_MUTEX_INITIALIZER;
 
+pthread_mutex_t CONSOLE_OUT_LOCK = PTHREAD_MUTEX_INITIALIZER;
+
 pthread_mutex_t REQUESTS_LOCK = PTHREAD_MUTEX_INITIALIZER;
 
 queue<disk_io_request*>* requests;
@@ -197,7 +199,6 @@ void CREATE(const char* filename)
 
 void IMPORT(const char* ssfsFile, const char* unixFilename){
   /* Initializing */
-  char* disk = getDisk();
   uint block_size = getBlockSize();
   uint num_blocks = getNumBlocks();
   uint byteOffs =  block_size + MAX_INODES*block_size + (num_blocks/block_size);
@@ -238,7 +239,6 @@ void IMPORT(const char* ssfsFile, const char* unixFilename){
   }
 
   inode* inod = getInodeFromBlockNumber(ino);
-
   //i represents the # of blocks read at point in loop
   char* read_buffer[block_size];
   for(int i = 0; i < (filesize + block_size)/block_size; i++) //add block size to filesize to avoid truncating
@@ -252,7 +252,56 @@ void IMPORT(const char* ssfsFile, const char* unixFilename){
   }
 }
 
-void CAT(const char* fileName){}
+void CAT(const char* fileName){
+  int indirect_max_size = NUM_DIRECT_BLOCKS + getBlockSize()/sizeof(int); // # of blocks that can be refferenced by an indirect block
+  int double_indirect_max_size = indirect_max_size + (getBlockSize()/sizeof(int)) * (getBlockSize()/sizeof(int));
+
+  int ino = getInode(fileName);
+  if(ino == -1) return;
+
+  inode* inod = getInodeFromBlockNumber(ino);
+
+  int* indirect_block = (int*) readFromBlock(inod->indirect);
+  int* double_indirect_block = (int*) readFromBlock(inod->doubleIndirect);
+
+  int file_blocks = inod->fileSize / getBlockSize();
+  int fs = inod->fileSize;
+  char* cat_buffer = new char[fs](); //will reach blocks into this buffer
+
+  for(int i = 0; i < file_blocks; i++)
+  {
+    if(file_blocks < NUM_DIRECT_BLOCKS)
+    {
+      int blocknum_to_req = inod->direct[i];
+      char* block_buffer = readFromBlock(blocknum_to_req);
+      memcpy(&cat_buffer + (i*getBlockSize()), &block_buffer, getBlockSize());
+      delete block_buffer;
+    }
+    else if(i >= NUM_DIRECT_BLOCKS && i < indirect_max_size)
+    {
+      int blocknum_to_req = indirect_block[i - NUM_DIRECT_BLOCKS];
+      char* block_buffer = readFromBlock(blocknum_to_req);
+      memcpy(&cat_buffer + (i*getBlockSize()), &block_buffer, getBlockSize());
+      delete block_buffer;
+    }
+    else if(i >= indirect_max_size && i < double_indirect_max_size)
+    {
+      cout << "Fuck double indirect rn" << endl;
+    }
+  }
+
+  //mutex to console to ensure contig. output
+  pthread_mutex_lock(&CONSOLE_OUT_LOCK);
+  for(int i = 0; i < sizeof(cat_buffer); i++)
+  {
+    cout << cat_buffer[i];
+  }
+  pthread_mutex_unlock(&CONSOLE_OUT_LOCK);
+
+  delete[] double_indirect_block;
+  delete[] indirect_block;
+  delete[] inod;
+}
 
 void DELETE(const char* fileName)
 {
@@ -368,12 +417,57 @@ void WRITE(const char* fileName, char c, uint start, uint num)
 
 void READ(const char* fileName, uint start, uint num)
 {
-  char* bytes = new char[num];
-  inode* inod = getInodeFromBlockNumber(getInode(fileName));
+  int indirect_max_size = NUM_DIRECT_BLOCKS + getBlockSize()/sizeof(int); // # of blocks that can be refferenced by an indirect block
+  int double_indirect_max_size = indirect_max_size + (getBlockSize()/sizeof(int)) * (getBlockSize()/sizeof(int));
+
+  int ino = getInode(fileName);
+  if(ino == -1) return;
+
+  inode* inod = getInodeFromBlockNumber(ino);
+
+  int* indirect_block = (int*) readFromBlock(inod->indirect);
+  int* double_indirect_block = (int*) readFromBlock(inod->doubleIndirect);
+
+  int file_blocks = inod->fileSize / getBlockSize();
+  int fs = inod->fileSize;
+  char* cat_buffer = new char[fs](); //will reach blocks into this buffer
+
+  for(int i = 0; i < file_blocks; i++)
+  {
+    if(file_blocks < NUM_DIRECT_BLOCKS)
+    {
+      int blocknum_to_req = inod->direct[i];
+      char* block_buffer = readFromBlock(blocknum_to_req);
+      memcpy(&cat_buffer + (i*getBlockSize()), &block_buffer, getBlockSize());
+      delete block_buffer;
+    }
+    else if(i >= NUM_DIRECT_BLOCKS && i < indirect_max_size)
+    {
+      int blocknum_to_req = indirect_block[i - NUM_DIRECT_BLOCKS];
+      char* block_buffer = readFromBlock(blocknum_to_req);
+      memcpy(&cat_buffer + (i*getBlockSize()), &block_buffer, getBlockSize());
+      delete block_buffer;
+    }
+    else if(i >= indirect_max_size && i < double_indirect_max_size)
+    {
+      cout << "Fuck double indirect rn" << endl;
+    }
+  }
+
+  //mutex to console to ensure contig. output
+  pthread_mutex_lock(&CONSOLE_OUT_LOCK);
+  for(int i = 0; i < sizeof(cat_buffer); i++)
+  {
+    cout << cat_buffer[i];
+  }
+  pthread_mutex_unlock(&CONSOLE_OUT_LOCK);
+
+  delete[] double_indirect_block;
+  delete[] indirect_block;
+  delete[] inod;
 }
 
 bool shut=0;
-
 void SHUTDOWN()
 {
   shut = 1;
@@ -384,14 +478,7 @@ void SHUTDOWN()
 
 void LIST()
 {
-  int i;
-  bool found = 0;
-  for(i = 0; i < getNumBlocks()/getBlockSize(); i++)
-    {
-      /*              metadata        num of inodes        */
-      uint byteOffs =  getBlockSize() + i*getBlockSize();
-      char* disk = getDisk();
-    }
+
 }
 
 void*
