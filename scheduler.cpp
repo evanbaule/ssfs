@@ -15,6 +15,8 @@ void* SCH_run(void* vec)
 
   while(1)
     {
+      if(isShutdown()) break;
+      if(requests->size()==0)continue;
       pthread_mutex_lock(&lock);
       disk_io_request* req = requests->front();
       requests->pop();

@@ -17,9 +17,8 @@ pthread_mutex_t REQUESTS_LOCK = PTHREAD_MUTEX_INITIALIZER;
 
 queue<disk_io_request*>* requests = new queue<disk_io_request*>;
 
-bool stop = 0;
-
-void shutdown() {stop = 1;}
+bool shut=0;
+bool isShutdown() {return shut;}
 
 int getBitmapSize()
 {
@@ -101,13 +100,11 @@ int getInode(const char* file)
 
       pthread_mutex_lock(&req.lock);
       while(!req.done){
-        cout << "befire" << endl;
+        cout << "before" << endl;
         pthread_cond_wait(&req.waitFor, &req.lock);
         cout << "after" << endl;
       }
       pthread_mutex_unlock(&req.lock);
-
-      
 
       if(strncmp(data, file, MAX_FILENAME_SIZE) == 0)
         found = 1;
@@ -586,13 +583,9 @@ void READ(const char* fileName, uint start, uint num)
   delete[] inod;
 }
 
-bool shut=0;
 void SHUTDOWN()
 {
   shut = 1;
-
-  /*from ssfs to tell the threads to stop adding to the requests*/
-  shutdown();
 }
 
 void LIST()
@@ -612,7 +605,7 @@ process_ops(void* file_arg)
 	string linebuff;
 	while(getline(input_stream, linebuff))
 	{
-    if(stop) break;
+    if(shut) break;
     stringstream ss(linebuff);
     string command;
     ss >> command;

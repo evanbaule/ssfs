@@ -104,6 +104,7 @@ int getNumBlocks();
 char* getDisk();
 
 void shutdown();
+bool isShutdown();
 
 
 #endif
