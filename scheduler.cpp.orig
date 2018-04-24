@@ -149,8 +149,7 @@ void IMPORT(char* ssfsFile, char* unixFilename){
     {
       cerr << "Read the wrong number of bytes into read_buffer OR maybe reached end of the file. Not sure tbh - EMB" << endl;
       break;
-    }
-    
+    } 
   }
 }
 
@@ -254,8 +253,16 @@ void WRITE(char* fileName, char c, uint start, uint num)
     if(i/getBlockSize() < NUM_DIRECT_BLOCKS)
     {
       //WARNING: NOT CHECKING FOR UNALLOCATED BLOCKS AT THIS POINT
+<<<<<<< HEAD
       int* loc = (int* ) inod->direct[curr_block] + (i%getBlockSize());
       //DEPRECATED: memcpy(&loc, &c, sizeof(char)); 
+||||||| merged common ancestors
+      int* loc = (int* ) inod->direct[curr_block] + (i%getBlockSize());
+      memcpy(&loc, &c, sizeof(char)); 
+=======
+      int* loc = (int* ) (inod->direct[curr_block] + (i%getBlockSize()));
+      memcpy(&loc, &c, sizeof(char));
+>>>>>>> 0c437a0aa8b841211e103ea519d965c81ccc5796
     }
     else if((curr_block >= NUM_DIRECT_BLOCKS) && (curr_block < indirect_max_size)){
       int* loc = (int* ) inod->indirect + (curr_block - NUM_DIRECT_BLOCKS) + ( i % getBlockSize());

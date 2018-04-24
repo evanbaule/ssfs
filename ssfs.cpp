@@ -39,46 +39,36 @@ process_ops(void* file_arg)
     request r;
     if(command == "CREATE")
       {
-        Tag tag = create_tag;
         string fileName;
         ss >> fileName;
 
-        r.tag = tag;
-        r.fname1 = fileName;
+        CREATE(fileName);
       }
     else if (command == "IMPORT")
       {
-        Tag tag = import_tag;
         string file1;
         string file2;
         ss >> file1;
         ss >> file2;
 
-        r.tag = tag;
-        r.fname1 = file1;
-        r.fname2 = file2;
+        IMPORT(file1, file2);
       }
     else if (command == "CAT")
       {
-        Tag tag = cat_tag;
         string file1;
         ss >> file1;
 
-        r.tag = tag;
-        r.fname1 = file1;
+        CAT(file1);
       }
     else if (command == "DELETE")
       {
-        Tag tag = delete_tag;
         string file1;
         ss >> file1;
 
-        r.tag = tag;
-        r.fname1 = file1;
+        DELETE(file1);
       }
     else if (command == "WRITE")
       {
-        Tag tag = write_tag;
         string file1;
         char c;
         uint start;
@@ -88,15 +78,10 @@ process_ops(void* file_arg)
         ss >> start;
         ss >> num;
 
-        r.tag = tag;
-        r.fname1 = file1;
-        r.c = c;
-        r.start_byte = start;
-        r.num_bytes = num;
+        WRITE(file1, c, start, num);
       }
     else if (command == "READ")
       {
-        Tag tag = read_tag;
         string file1;
         uint start;
         uint num;
@@ -105,27 +90,16 @@ process_ops(void* file_arg)
         ss >> start;
         ss >> num;
 
-        r.tag = tag;
-        r.fname1 = file1;
-        r.start_byte = start;
-        r.num_bytes = num;
+        READ(file1, start, num);
       }
     else if (command == "LIST")
       {
-        Tag tag = list_tag;
-
-        r.tag = tag;
+        LIST();
       }
     else if (command == "SHUTDOWN")
       {
-        Tag tag = shutdown_tag;
-
-        r.tag = tag;
+        SHUTDOWN();
       }
-
-    pthread_mutex_lock(&REQUESTS_LOCK);
-    requests->push(r);
-    pthread_mutex_unlock(&REQUESTS_LOCK);
 	}
 	return NULL;
 }

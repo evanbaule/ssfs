@@ -10,12 +10,22 @@
 #include <pthread.h>
 #include <sstream>
 
-#include "scheduler.hpp"
-
 
 /* Constants */
 #define MAX_FILENAME_SIZE 32
 #define NUM_DIRECT_BLOCKS 12
+
+/* File Meta - Data */
+typedef struct {
+  char fileName[MAX_FILENAME_SIZE]; // Max 32 chars
+  uint fileSize;
+  uint direct[NUM_DIRECT_BLOCKS];
+  uint indirect;
+  uint doubleIndirect;
+} inode;
+
+
+#include "scheduler.hpp"
 
 #define MIN_BLOCK_SIZE 128
 #define MAX_BLOCK_SIZE 512
@@ -28,15 +38,6 @@
 using namespace std;
 
 typedef unsigned int uint;
-
-/* File Meta - Data */
-typedef struct {
-  char fileName[MAX_FILENAME_SIZE]; // Max 32 chars
-  uint fileSize;
-  uint direct[NUM_DIRECT_BLOCKS];
-  uint indirect;
-  uint doubleIndirect;
-} inode;
 
 // Identifies the disk io operation to performed by a disk_io_request within scheduler workload buffer
 enum Operation {
@@ -55,31 +56,11 @@ typedef struct
 	char* data; // Will either be a pointer to the SOURCE LOCATION to write FROM ||OR|| the DESTINATION LOCATION to read TO
 } disk_io_request;
 
-/* ----- MAYBE DEPRECATED ----- */
-enum Tag {
-	create_tag,
-	import_tag,
-	cat_tag,
-	delete_tag,
-	write_tag,
-	read_tag,
-	list_tag,
-	shutdown_tag,
-};
-typedef struct {
-	Tag tag; //Maps to disk operation
-	string fname1; //<SSFS File Name>
-	string fname2; //<Unix File Name>
-	char c; //<char>
-	uint start_byte; //<start byte>
-	uint num_bytes; //<num bytes>
-} request;
-/* ----- END MAYBE DEPRECATED ----- */
-
 typedef struct
 {
-  queue<request>* requests;
+  queue<disk_io_requst>* requests;
   pthread_mutex_t lock;
+  pthread_mutex_t diskLock;
 } SCH_struct;
 
 uint getBlockSize();
