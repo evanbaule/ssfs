@@ -50,21 +50,21 @@ typedef struct {
   uint doubleIndirect;
 } inode;
 
-void CREATE(char* filename);
+void CREATE(const char* filename);
 
-void IMPORT(char* ssfsFile, char* unixFilename);
+void IMPORT(const char* ssfsFile, char* unixFilename);
 
-void CAT(char* fileName);
+void CAT(const char* fileName);
 
-void DELETE(char* fileName);
+void DELETE(const char* fileName);
 
-void WRITE(char* fileName, char c, uint start, uint num);
+void WRITE(const char* fileName, char c, uint start, uint num);
 
-void READ(char* fileName, uint start, uint num);
+void READ(const char* fileName, uint start, uint num);
 
 int getEmptyInode();
 
-int getInode(char* file);
+int getInode(const char* file);
 
 inode* getInodeFromIndex(int ind);
 
