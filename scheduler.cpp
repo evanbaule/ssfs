@@ -237,6 +237,23 @@ void SHUTDOWN()
   shutdown();
 }
 
+void LIST()
+{
+  int i;
+  for(i = 0; i < getNumBlocks()/getBlockSize(); i++)
+    {
+      /*              metadata        num of inodes        */
+      uint byteOffs =  getBlockSize() + i*getBlockSize();
+      char* disk = getDisk();
+
+      if(strcmp(disk + byteOffs, file) == 0)
+        {
+          found = 1;
+          break;
+        }
+    }
+}
+
 void* SCH_run(void* vec)
 {
   SCH_struct* str = (SCH_struct*) vec;

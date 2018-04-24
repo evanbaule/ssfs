@@ -29,6 +29,7 @@ using namespace std;
 
 typedef unsigned int uint;
 
+/* File Meta - Data */
 typedef struct {
   char fileName[MAX_FILENAME_SIZE]; // Max 32 chars
   uint fileSize;
@@ -38,6 +39,24 @@ typedef struct {
 } inode;
 
 
+// Identifies the disk io operation to performed by a disk_io_request within scheduler workload buffer
+enum Operation {
+	io_READ,
+	io_WRITE,
+};
+
+/* Flow: Each thread will *instead of adding a reqeust 
+to the buffer* call the corresponding function which will 
+pass n disk_io_requests to the scheduler depending on how many 
+blocks to read or write, which the scheduler will service one at a time */
+typedef struct 
+{
+	uint block_number; // Target block
+	Operation op; // Indicated whether we are reading or writing data to/from block_number
+	char* data; // Will either be a pointer to the SOURCE LOCATION to write FROM ||OR|| the DESTINATION LOCATION to read TO
+} disk_io_request;
+
+/* ----- MAYBE DEPRECATED ----- */
 enum Tag {
 	create_tag,
 	import_tag,
@@ -48,7 +67,6 @@ enum Tag {
 	list_tag,
 	shutdown_tag,
 };
-
 typedef struct {
 	Tag tag; //Maps to disk operation
 	string fname1; //<SSFS File Name>
@@ -57,6 +75,7 @@ typedef struct {
 	uint start_byte; //<start byte>
 	uint num_bytes; //<num bytes>
 } request;
+/* ----- END MAYBE DEPRECATED ----- */
 
 typedef struct
 {
