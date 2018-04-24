@@ -23,11 +23,15 @@ void* SCH_run(void* vec)
       pthread_mutex_lock(&diskLock);
       if(req.op == io_READ)
         {
+          pthread_mutex_lock(&req->lock);
           memcpy(req.data, getDisk()+req.block_number*getBlockSize(), getBlockSize());
+          pthread_cond_signal(&req->waitFor);
+          pthread_mutex_unlock(&req->lock);
         }
       else if (req.op == io_WRITE)
         {
           memcpy(getDisk()+req.block_number*getBlockSize(), req.data, getBlockSize());
+          delete(req.data);
         }
       pthread_mutex_unlock(&diskLock);
     }

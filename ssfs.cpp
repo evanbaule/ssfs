@@ -38,64 +38,103 @@ int getFreeBlock()
   return -1;
 }
 
-//TODO: shouldn't use the first some bit maps because they are reserved for meta data and inode map and bit map
 int getEmptyInode()
 {
-  char found = 0;
+  bool found=0;
   int i;
-  for(i = 0; i < getNumBlocks()/getBlockSize(); i++)
+  for(i=0;i<MAX_INODES && !found;i++)
     {
-      /*              metadata        num of inodes        */
-      uint byteOffs =  getBlockSize() + i*getBlockSize();
-      char* disk = getDisk();
+      disk_io_request req;
+      req.op = io_READ;
+      char* data = new char[getBlockSize()];
+      uint blockNumber = i+1;
+      req.data = data;
+      req.block_number = blockNumber;
 
-      if(disk[byteOffs] == 0)
-        {
-          found = 1;
-          break;
-        }
+      req.waitFor = PTHREAD_COND_INITIALIZER;
+      req.lock = PTHREAD_MUTEX_INITIALIZER;
+
+      addRequest(&req);
+
+      while(!req.done)
+        pthread_cond_wait(&req.waitFor, &req.lock);
+
+      if(data[0] != 0)
+        found = 1;
+      delete(data);
     }
-  if(!found) return -1;
-  return i;
+  if(found) return i+1;
+  else return -1;
 }
 
+/*
 int getDataStart()
 {
   return (getBlockSize() + MAX_INODES*getBlockSize() + getBitmapSize());
 }
+*/
 
 int getInode(char* file)
 {
-  char found = 0;
+  bool found=0;
   int i;
-  for(i = 0; i < getNumBlocks()/getBlockSize(); i++)
+  for(i=0;i<MAX_INODES && !found;i++)
     {
-      /*              metadata        num of inodes        */
-      uint byteOffs =  getBlockSize() + i*getBlockSize();
-      char* disk = getDisk();
+      disk_io_request req;
+      req.op = io_READ;
+      char* data = new char[getBlockSize()];
+      uint blockNumber = i+1;
+      req.data = data;
+      req.block_number = blockNumber;
 
-      if(strcmp(disk + byteOffs, file) == 0)
-        {
-          found = 1;
-          break;
-        }
+      req.waitFor = PTHREAD_COND_INITIALIZER;
+      req.lock = PTHREAD_MUTEX_INITIALIZER;
+
+      addRequest(&req);
+
+      while(!req.done)
+        pthread_cond_wait(&req.waitFor, &req.lock);
+
+      if(strncmp(data, file, MAX_FILE_NAME) == 0)
+        found = 1;
+      delete(data);
     }
-  if(!found) return -1;
-  return i;
+  if(found) return i+1;
+  else return -1;
 }
 
-inode* getInodeFromIndex(int ind)
+inode* getInodeFromBlockNumber(int ind)
 {
-  int inodeStart = getBlockSize() + ind*getBlockSize();
-  inode* inod = ((inode*)(getDisk()+inodeStart));
-  return inod;
+  disk_io_request req;
+  req.op = io_READ;
+  char* data = new char[getBlockSize()];
+  uint blockNumber = ind;
+  req.data = data;
+  req.block_number = blockNumber;
+
+  req.waitFor = PTHREAD_COND_INITIALIZER;
+  req.lock = PTHREAD_MUTEX_INITIALIZER;
+
+  addRequest(&req);
+
+  while(!req.done)
+    pthread_cond_wait(&req.waitFor, &req.lock);
+
+  return (inode*) data;
 }
 
+/*
 int getStartOfDataBlocks()
 {
   return getBlockSize() + MAX_INODES*getBlockSize() + ((getBitmapSize()*4)/getBlockSize() + ((getBitmapSize()*4)%getBlockSize()!=0))*getBlockSize();
 }
-
+*/
+void addRequest(disk_io_request* req)
+{
+  pthread_mutex_lock(&REQUESTS_LOCK);
+  requests->push(req);
+  pthread_mutex_unlock(&REQUESTS_LOCK);
+}
 
 void CREATE(char* filename)
 {
@@ -103,13 +142,17 @@ void CREATE(char* filename)
   {
     cerr << "Invalid filename entered into CREATE argument " << endl;
   }
-  int i = getEmptyInode();
-  if(i==-1){
-    cerr << "Error generating empty inode in func CREATE" << endl;
-  }
-  int inodeStart = getBlockSize() + i*getBlockSize();
-  inode* inod = ((inode*)(getDisk()+inodeStart));
-  strcpy(inod->fileName, filename);
+  int inod = getEmptyInode();
+  if(inod != -1)
+    {
+      disk_io_request req;
+      req.op = io_WRITE;
+      char* data = new char[getBlockSize()]();
+      memcpy(data, filename, strlen(filename));
+      req.data = data;
+      req.blockNumber = inod;
+      addRequest(&req);
+    }
 }
 
 void IMPORT(char* ssfsFile, char* unixFilename){
