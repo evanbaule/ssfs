@@ -29,6 +29,8 @@ typedef struct
 	uint block_number; // Target block
 	Operation op; // Indicated whether we are reading or writing data to/from block_number
 	char* data; // Will either be a pointer to the SOURCE LOCATION to write FROM ||OR|| the DESTINATION LOCATION to read TO
+  pthread_cond_t waitFor;
+  pthread_mutex_t lock;
 } disk_io_request;
 
 
