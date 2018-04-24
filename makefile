@@ -2,7 +2,8 @@
 #C350 - Operating Systems
 #Programming Assignment 5 - Super Simple File System SSFS
 
-all:	link_all
+all:
+	g++ ssfs.cpp scheduler.cpp -o ssfs -pthread
 
 #Links *.o into driver executable
 link_all: comp_all ssfs.o scheduler.o 

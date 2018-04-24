@@ -9,7 +9,30 @@
 #include <fstream>
 #include <pthread.h>
 #include <sstream>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
+// Identifies the disk io operation to performed by a disk_io_request within scheduler workload buffer
+enum Operation {
+	io_READ,
+	io_WRITE,
+};
+
+/* Flow: Each thread will *instead of adding a reqeust 
+   to the buffer* call the corresponding function which will 
+   pass n disk_io_requests to the scheduler depending on how many 
+   blocks to read or write, which the scheduler will service one at a time */
+typedef struct
+{
+	uint block_number; // Target block
+	Operation op; // Indicated whether we are reading or writing data to/from block_number
+	char* data; // Will either be a pointer to the SOURCE LOCATION to write FROM ||OR|| the DESTINATION LOCATION to read TO
+} disk_io_request;
+
+
+#include "scheduler.hpp"
 
 /* Constants */
 #define MAX_FILENAME_SIZE 32
@@ -24,8 +47,27 @@ typedef struct {
   uint doubleIndirect;
 } inode;
 
+void CREATE(char* filename);
 
-#include "scheduler.hpp"
+void IMPORT(char* ssfsFile, char* unixFilename);
+
+void CAT(char* fileName);
+
+void DELETE(char* fileName);
+
+void WRITE(char* fileName, char c, uint start, uint num);
+
+void READ(char* fileName, uint start, uint num);
+
+int getEmptyInode();
+
+int getInode(char* file);
+
+inode* getInodeFromIndex(int ind);
+
+int getStartOfDataBlocks();
+
+void SHUTDOWN();
 
 #define MIN_BLOCK_SIZE 128
 #define MAX_BLOCK_SIZE 512
@@ -39,26 +81,9 @@ using namespace std;
 
 typedef unsigned int uint;
 
-// Identifies the disk io operation to performed by a disk_io_request within scheduler workload buffer
-enum Operation {
-	io_READ,
-	io_WRITE,
-};
-
-/* Flow: Each thread will *instead of adding a reqeust 
-to the buffer* call the corresponding function which will 
-pass n disk_io_requests to the scheduler depending on how many 
-blocks to read or write, which the scheduler will service one at a time */
-typedef struct 
-{
-	uint block_number; // Target block
-	Operation op; // Indicated whether we are reading or writing data to/from block_number
-	char* data; // Will either be a pointer to the SOURCE LOCATION to write FROM ||OR|| the DESTINATION LOCATION to read TO
-} disk_io_request;
-
 typedef struct
 {
-  queue<disk_io_requst>* requests;
+  queue<disk_io_request>* requests;
   pthread_mutex_t lock;
   pthread_mutex_t diskLock;
 } SCH_struct;
