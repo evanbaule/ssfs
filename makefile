@@ -6,7 +6,7 @@ all: link_all
 
 #Links *.o into driver executable
 link_all: comp_all ssfs.o scheduler.o
-	g++ ssfs.o scheduler.o -o ssfs -pthread
+	g++ -pthread ssfs.o scheduler.o -o ssfs
 
 
 #Compiles src files into object in build/*.o

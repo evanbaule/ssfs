@@ -166,7 +166,7 @@ void setByteMap(int block, bool flag)
   int* data = (int*) readFromBlock(blockByteLoc);
   data[block] = flag;
 
-  writeToBlock(blockByteLoc, data);
+  writeToBlock(blockByteLoc, (char*) data);
 
   delete data;
 }
@@ -237,7 +237,7 @@ void IMPORT(char* ssfsFile, char* unixFilename){
     ino = getEmptyInode();
   }
 
-  inode* inod = getInodeFromIndex(ino);
+  inode* inod = getInodeFromBlockNumber(ino);
 
   //i represents the # of blocks read at point in loop
   char* read_buffer[block_size];
@@ -252,9 +252,7 @@ void IMPORT(char* ssfsFile, char* unixFilename){
   }
 }
 
-void CAT(char* fileName){
-  char* 
-}
+void CAT(char* fileName){}
 
 void DELETE(char* fileName)
 {
@@ -371,7 +369,7 @@ void WRITE(char* fileName, char c, uint start, uint num)
 void READ(char* fileName, uint start, uint num)
 {
   char* bytes = new char[num];
-  inode* inod = getInodeFromIndex(getInode(fileName));
+  inode* inod = getInodeFromBlockNumber(getInode(fileName));
 }
 
 bool shut=0;
