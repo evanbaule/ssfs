@@ -1,0 +1,14 @@
+TODO:
+(Put your initials next to items that you add & the time you added them)
+
+//Storing literal values inside disk[0] metadata superblock
+- Load superblock into memory as SUPER on startup (EMB @ 4/25 @15:00)
+- Rewrite access functions to the super block 
+- Rewrite freelist bytemap access logic with new location & size from superblock
+- Rewrite imap bytemap access logic with new location & size from superblock
+
+//Utilization of syscalls to perform disk file io
+- Change memcpy() in read to read() syscall
+- Change memcpy in write to write() syscall
+- Rewrite bytemaps to disk @ shutdown 
+	- confirmation from Brian that this can function as a write-back rather than write-through
