@@ -22,6 +22,8 @@ void* SCH_run(void* vec)
       requests->pop();
       pthread_mutex_unlock(&lock);
 
+      cout << "Processing request: " << req->op << endl;
+
       pthread_mutex_lock(&diskLock);
       if(req->op == io_READ)
         {
@@ -33,16 +35,18 @@ void* SCH_run(void* vec)
         }
       else if (req->op == io_WRITE)
         {
+          cout << "WRITING" << endl;
           memcpy(getDisk()+req->block_number*getBlockSize(), req->data, getBlockSize());
           delete(req->data);
         }
       pthread_mutex_unlock(&diskLock);
-
     }
 
+  cout << "Writing to disk" << endl;
   int fd = open("DISK", O_WRONLY);
 
   write(fd, getDisk(), getNumBlocks()*getBlockSize());
 
+  cout << "wrote to disk" << endl;
   return NULL;
 }

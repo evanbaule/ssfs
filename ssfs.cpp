@@ -56,17 +56,22 @@ int getEmptyInode()
       req.block_number = blockNumber;
       req.done = 0;
 
-      req.waitFor = PTHREAD_COND_INITIALIZER;
-      req.lock = PTHREAD_MUTEX_INITIALIZER;
+      pthread_mutex_init( &req.lock, NULL);
+      pthread_cond_init( &req.waitFor, NULL);
 
       addRequest(&req);
 
+      cout << "getEmptyInode() Fetching block " << blockNumber << endl;
+
+      pthread_mutex_lock(&req.lock);
       while(!req.done)
         pthread_cond_wait(&req.waitFor, &req.lock);
+      pthread_mutex_unlock(&req.lock);
 
-      if(data[0] != 0)
+      if(data[0] == 0)
         found = 1;
       delete[](data);
+      if(found) break;
     }
   if(found) return i+1;
   else return -1;
@@ -98,11 +103,11 @@ int getInode(const char* file)
 
       addRequest(&req);
 
+      //cout << "getInode() Fetching block " << blockNumber << endl;
+
       pthread_mutex_lock(&req.lock);
       while(!req.done){
-        cout << "before" << endl;
         pthread_cond_wait(&req.waitFor, &req.lock);
-        cout << "after" << endl;
       }
       pthread_mutex_unlock(&req.lock);
 
@@ -127,7 +132,6 @@ inode* getInodeFromBlockNumber(int ind)
   req.lock = PTHREAD_MUTEX_INITIALIZER;
 
   addRequest(&req);
-
 
   while(!req.done)
     pthread_cond_wait(&req.waitFor, &req.lock);
@@ -228,12 +232,15 @@ void CREATE(const char* filename)
     cerr << "Invalid filename entered into CREATE argument " << endl;
   }
   int inod = getEmptyInode();
+  cout << "got node" << endl;
   if(inod != -1)
     {
       char* data = new char[getBlockSize()]();
       memcpy(data, filename, strlen(filename));
 
       writeToBlock(inod, data);
+      cout << "wrote to block" << endl;
+      delete[] data;
     }
 }
 
@@ -276,7 +283,6 @@ void IMPORT(const char* ssfsFile, const char* unixFilename){
   CREATE(ssfsFile);
 
   int inodeBlock = getInode(ssfsFile);
-
   inode* ino = getInodeFromBlockNumber(inodeBlock);
   ino->fileSize = filesize;
 
@@ -395,7 +401,6 @@ void DELETE(const char* fileName)
 {
   int ino = getInode(fileName);
   if(ino == -1) return;
-
 
   inode* inod = getInodeFromBlockNumber(ino);
 
@@ -752,7 +757,9 @@ int main(int argc, char const *argv[])
     SCH_struct* str = new SCH_struct;
     str->requests = requests;
     str->lock = REQUESTS_LOCK;
-    pthread_create(&SCH_thread, NULL, SCH_run, (void*) str);
+    //    pthread_create(&SCH_thread, NULL, SCH_run, (void*) str);
+
+    SCH_run((void*) str);
 	}
   while(1);
 }
