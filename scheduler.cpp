@@ -11,8 +11,6 @@ void* SCH_run(void* vec)
   pthread_mutex_t lock = str->lock;
   pthread_mutex_t diskLock = str->diskLock;
 
-  sleep(1);
-
   while(1)
     {
       if(isShutdown()) break;

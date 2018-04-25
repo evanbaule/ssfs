@@ -282,6 +282,8 @@ void IMPORT(const char* ssfsFile, const char* unixFilename){
   DELETE(ssfsFile);
   CREATE(ssfsFile);
 
+  cout << "is it getting here" << endl;
+
   int inodeBlock = getInode(ssfsFile);
   inode* ino = getInodeFromBlockNumber(inodeBlock);
   ino->fileSize = filesize;
@@ -598,12 +600,16 @@ void LIST()
 
 }
 
+int thread = 0;
+
 void*
 process_ops(void* file_arg)
 {
 	//string op_file_name = "thread1ops.txt";
   char* op_file_name = (char*)file_arg;
 	cout << "Thread created:\t" << op_file_name << endl;
+
+  int threadNum = thread++;
 
 	/* Parsing */
 	ifstream input_stream(op_file_name);
