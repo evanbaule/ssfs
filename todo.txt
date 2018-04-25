@@ -3,6 +3,7 @@ TODO:
 
 //Storing literal values inside disk[0] metadata superblock
 - Load superblock into memory as SUPER on startup (EMB @ 4/25 @15:00)
+- Load both bytemaps into global char* locations for access (EMB @ 4/25 @15:00)
 - Rewrite access functions to the super block (EMB @ 4/25 @15:00)
 - Rewrite freelist bytemap access logic with new location & size from superblock (EMB @ 4/25 @15:00)
 - Rewrite imap bytemap access logic with new location & size from superblock (EMB @ 4/25 @15:00)
