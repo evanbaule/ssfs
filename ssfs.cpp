@@ -7,7 +7,7 @@ pthread_t SCH_thread;
 
 char* SUPER;
 char* FREE_MAP;
-char* INODE_MAP;
+char* INODE_MAP = new char[MAX_INODES];
 
 /*Lock to protect output to console to ensure clean printing */
 pthread_mutex_t CONSOLE_OUT_LOCK = PTHREAD_MUTEX_INITIALIZER;
@@ -37,9 +37,9 @@ int getUnusedBlock()
     // Maybe need to do i % blockSize() here or something to index into individual bytes
     int free_index = i - getFreeMapStart();
     if(FREE_MAP[free_index] == 0)
-    {
-      return i; //returns the block # of the unassigned block
-    }
+      {
+        return i; //returns the block # of the unassigned block
+      }
   }
   return -1;
   /* DEPRECATED 
@@ -128,13 +128,12 @@ int getInode(const char* file)
   int i;
   for(i=0;i<MAX_INODES && !found;i++)
     {
-      if(INODE_MAP[i])
+      if(!INODE_MAP[i])
       {
         //I think this will skip requests to unallocated blocks but im autistic so it could be completely wrong
         continue;
       }
       char* data = readFromBlock(i+1);
-
       if(strncmp(data, file, MAX_FILENAME_SIZE) == 0)
         found = 1;
       delete[](data);
@@ -162,11 +161,11 @@ Adds an io_WRITE request to the disk scheduler workload buffer
 */
 void writeToBlock(int block, char* data)
 {
-  disk_io_request req;
-  req.op = io_WRITE;
-  req.data = data;
-  req.block_number = block;
-  addRequest(&req);
+  disk_io_request* req = new disk_io_request;
+  req->op = io_WRITE;
+  req->data = data;
+  req->block_number = block;
+  addRequest(req);
 }
 
 /*
@@ -177,22 +176,26 @@ Adds an io_READ request to the disk scheduler workload buffer
 */
 char* readFromBlock(int block)
 {
-  disk_io_request req;
-  req.op = io_READ;
-  req.data = new char[getBlockSize()]();
-  req.block_number = block;
+  disk_io_request* req = new disk_io_request;
+  req->op = io_READ;
+  req->data = new char[getBlockSize()]();
+  req->block_number = block;
+  req->done = 0;
 
-  pthread_mutex_init( &req.lock, NULL);
-  pthread_cond_init( &req.waitFor, NULL);
+  pthread_mutex_init( &req->lock, NULL);
+  pthread_cond_init( &req->waitFor, NULL);
 
-  pthread_mutex_lock(&req.lock);
-  while(!req.done)
-    pthread_cond_wait(&req.waitFor, &req.lock);
-  pthread_mutex_unlock(&req.lock);
+  addRequest(req);
 
-  addRequest(&req);
+  printf("Waiting for lock in readFromBlock\n");
+  pthread_mutex_lock(&req->lock);
+  printf("Acquired lock in readFromBlock\n");
+  while(!req->done)
+    pthread_cond_wait(&req->waitFor, &req->lock);
+  printf("Signalled\n");
+  pthread_mutex_unlock(&req->lock);
 
-  return req.data;
+  return req->data;
 }
 
 /*
@@ -274,14 +277,13 @@ void CREATE(const char* filename)
     cerr << "Invalid filename entered into CREATE argument " << endl;
   }
   int inod = getEmptyInode();
-  cout << "got node" << endl;
   if(inod != -1)
     {
       char* data = new char[getBlockSize()]();
       memcpy(data, filename, strlen(filename));
-
+      
       writeToBlock(inod, data);
-      cout << "wrote to block" << endl;
+      INODE_MAP[inod] = 1;
       delete[] data;
     }
 }
@@ -333,14 +335,14 @@ void IMPORT(const char* ssfsFile, const char* unixFilename){
   /* Begins to read from unix file and inject blocks into the disk */
 
   DELETE(ssfsFile);
+  printf("Deleted file\n");
   CREATE(ssfsFile);
+  printf("Created file\n");
 
-  cout << "is it getting here" << endl;
 
   int inodeBlock = getInode(ssfsFile);
   inode* ino = getInodeFromBlockNumber(inodeBlock);
   ino->fileSize = filesize;
-
   int* indirs = new int[getBlockSize()/4]();
 
   int* doubleIndirs1 = new int[getBlockSize()/4]();
@@ -348,52 +350,54 @@ void IMPORT(const char* ssfsFile, const char* unixFilename){
   //i represents the # of blocks read at point in loop
   char* read_buffer = new char[block_size]();
   for(int i = 0; i < (filesize + block_size)/block_size; i++) //add block size to filesize to avoid truncating
-  {
-    int bytes_read;
-    if((bytes_read = read(fd, &read_buffer, block_size)) <= 0)
     {
-      if(bytes_read == -1)
-        cerr << "Error reading file" << endl;
-      break;
+      int bytes_read;
+      if((bytes_read = read(fd, &read_buffer, block_size)) <= 0)
+        {
+          if(bytes_read == -1)
+            cerr << "Error reading file" << endl;
+          break;
+        }
+      if(i < NUM_DIRECT_BLOCKS)
+        {
+          ino->direct[i] = getUnusedBlock();
+          writeToBlock(ino->direct[i], read_buffer);
+        }
+      else if (i < NUM_DIRECT_BLOCKS + getBlockSize()/4)
+        {
+          if(ino->indirect == 0)
+            ino->indirect = getUnusedBlock();
+          indirs[i-NUM_DIRECT_BLOCKS] = getUnusedBlock();
+          writeToBlock(indirs[i-NUM_DIRECT_BLOCKS], read_buffer);
+        }
+      else
+        {
+          if(ino->doubleIndirect == 0)
+            ino->doubleIndirect = getUnusedBlock();
+
+          int index = i-(NUM_DIRECT_BLOCKS + getBlockSize()/4);
+          int doubIndex =  index / (getBlockSize()/4);
+          int indirIndex = index % (getBlockSize()/4);
+
+          int* doubInt = (int*) readFromBlock(ino->doubleIndirect);
+          if(doubInt[doubIndex] == 0)
+            doubInt[doubIndex] = getUnusedBlock();
+
+          int* indirectBlock = (int*) readFromBlock(doubInt[doubIndex]);
+          indirectBlock[indirIndex] = getUnusedBlock();
+
+          writeToBlock(indirectBlock[indirIndex], read_buffer);
+
+          writeToBlock(doubInt[doubIndex],  (char*) indirectBlock);
+
+          writeToBlock(ino->doubleIndirect, (char*) doubInt);
+        }
     }
 
-    if(i < NUM_DIRECT_BLOCKS)
-      {
-        ino->direct[i] = getUnusedBlock();
-        writeToBlock(ino->direct[i], read_buffer);
-      }
-    else if (i < NUM_DIRECT_BLOCKS + getBlockSize()/4)
-      {
-        if(ino->indirect == 0)
-          ino->indirect = getUnusedBlock();
-        indirs[i-NUM_DIRECT_BLOCKS] = getUnusedBlock();
-        writeToBlock(indirs[i-NUM_DIRECT_BLOCKS], read_buffer);
-      }
-    else
-      {
-        if(ino->doubleIndirect == 0)
-          ino->doubleIndirect = getUnusedBlock();
-
-        int index = i-(NUM_DIRECT_BLOCKS + getBlockSize()/4);
-        int doubIndex =  index / (getBlockSize()/4);
-        int indirIndex = index % (getBlockSize()/4);
-
-        int* doubInt = (int*) readFromBlock(ino->doubleIndirect);
-        if(doubInt[doubIndex] == 0)
-          doubInt[doubIndex] = getUnusedBlock();
-
-        int* indirectBlock = (int*) readFromBlock(doubInt[doubIndex]);
-        indirectBlock[indirIndex] = getUnusedBlock();
-
-        writeToBlock(indirectBlock[indirIndex], read_buffer);
-
-        writeToBlock(doubInt[doubIndex],  (char*) indirectBlock);
-
-        writeToBlock(ino->doubleIndirect, (char*) doubInt);
-      }
-  }
-
-  writeToBlock(ino->indirect, (char*) indirs);
+  printf("Got INODE\n");
+  if(ino->indirect!=0)
+    writeToBlock(ino->indirect, (char*) indirs);
+  printf("Got INODE\n");
 
   writeToBlock(inodeBlock, (char*) ino);
 
@@ -512,6 +516,8 @@ void DELETE(const char* fileName)
   char* asdf = new char[getBlockSize()]();
   writeToBlock(ino, asdf);
   delete[] asdf;
+
+  INODE_MAP[ino] = 0;
 }
 
 /*
@@ -718,7 +724,7 @@ void LIST()
   for(int i = getInodeMapStart(); i < getInodeMapStart() + getInodeMapSize(); i++)
   {
     if(INODE_MAP[i - getInodeMapStart()] == -1) continue; // Skip unassigned inodes
-    inode* inod = getInode(i);
+    inode* inod = getInodeFromBlockNumber(i);
     cout << "FILE:\t" << inod->fileName << "\t" << inod->fileSize << endl;
   }
   pthread_mutex_unlock(&CONSOLE_OUT_LOCK);
@@ -911,7 +917,6 @@ int getDataStart()
 int main(int argc, char const *argv[])
 {
   /* Parsing terminal inputs */
-	vector<string> ops;
 	if(argc > 2)
 	{
 		if(argc > 6)
@@ -931,9 +936,14 @@ int main(int argc, char const *argv[])
     SCH_struct* str = new SCH_struct;
     str->requests = requests;
     str->lock = REQUESTS_LOCK;
-    pthread_create(&SCH_thread, NULL, SCH_run, (void*) str);
+    str->fd = open(argv[1], O_RDWR);
 
-    SUPER = readFromBlock(0);
+    SUPER = new char[32];
+    read(str->fd, SUPER, 32);
+
+    FREE_MAP = new char[getBitmapSize()];
+
+    pthread_create(&SCH_thread, NULL, SCH_run, (void*) str);
 
     for(int i = 2; i < argc;i++)
       {

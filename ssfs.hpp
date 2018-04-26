@@ -38,8 +38,6 @@ typedef struct
 
 #include "scheduler.hpp"
 
-char* readFromBlock(int i);
-
 /* Constants */
 #define MAX_FILENAME_SIZE 32
 #define NUM_DIRECT_BLOCKS 12
@@ -52,6 +50,8 @@ typedef struct {
   uint indirect;
   uint doubleIndirect;
 } inode;
+
+char* readFromBlock(int i);
 
 int getUnusedBlock();
 
@@ -99,10 +99,9 @@ typedef struct
 {
   queue<disk_io_request*>* requests;
   pthread_mutex_t lock;
-  pthread_mutex_t diskLock;
+  int fd;
 } SCH_struct;
 
-char* getDisk(); 
 //METADATA INFORMATION KEPT IN MEMORY
 int getNumBlocks(); 
 int getBlockSize(); 

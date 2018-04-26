@@ -9,7 +9,7 @@ void* SCH_run(void* vec)
   SCH_struct* str = (SCH_struct*) vec;
   queue<disk_io_request*>* requests = str->requests;
   pthread_mutex_t lock = str->lock;
-  pthread_mutex_t diskLock = str->diskLock;
+  int fd = str->fd;
 
   while(1)
     {
@@ -20,31 +20,23 @@ void* SCH_run(void* vec)
       requests->pop();
       pthread_mutex_unlock(&lock);
 
-      cout << "Processing request: " << req->op << endl;
-
-      pthread_mutex_lock(&diskLock);
       if(req->op == io_READ)
         {
+          printf("Waiting for lock in sched\n", req->op);
           pthread_mutex_lock(&req->lock);
-          memcpy(req->data, getDisk()+req->block_number*getBlockSize(), getBlockSize());
+          printf("Acquired lock in sched\n", req->op);
+          lseek(fd, req->block_number*getBlockSize(), SEEK_SET);
+          read(fd, req->data, getBlockSize());
           req->done = 1;
           pthread_cond_signal(&req->waitFor);
           pthread_mutex_unlock(&req->lock);
         }
       else if (req->op == io_WRITE)
         {
-          cout << "WRITING" << endl;
-          memcpy(getDisk()+req->block_number*getBlockSize(), req->data, getBlockSize());
-          delete(req->data);
+          printf("Writing data to file: %s\n", req->data);
+          lseek(fd, req->block_number*getBlockSize(), SEEK_SET);
+          write(fd, req->data, getBlockSize());
         }
-      pthread_mutex_unlock(&diskLock);
     }
-
-  cout << "Writing to disk" << endl;
-  int fd = open("DISK", O_WRONLY);
-
-  write(fd, getDisk(), getNumBlocks()*getBlockSize());
-
-  cout << "wrote to disk" << endl;
   return NULL;
 }
