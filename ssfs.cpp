@@ -352,7 +352,7 @@ void IMPORT(const char* ssfsFile, const char* unixFilename){
   for(int i = 0; i < (filesize + block_size)/block_size; i++) //add block size to filesize to avoid truncating
     {
       int bytes_read;
-      if((bytes_read = read(fd, &read_buffer, block_size)) <= 0)
+      if((bytes_read = read(fd, read_buffer, block_size)) <= 0)
         {
           if(bytes_read == -1)
             cerr << "Error reading file" << endl;
@@ -394,16 +394,14 @@ void IMPORT(const char* ssfsFile, const char* unixFilename){
         }
     }
 
-  printf("Got INODE\n");
   if(ino->indirect!=0)
     writeToBlock(ino->indirect, (char*) indirs);
-  printf("Got INODE\n");
+  delete[] indirs;
 
   writeToBlock(inodeBlock, (char*) ino);
-
-  delete[] indirs;
-  delete[] read_buffer;
   delete[] (char*) ino;
+
+  delete[] read_buffer;
 }
 
 /*
