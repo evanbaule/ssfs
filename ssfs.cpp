@@ -27,17 +27,18 @@ getBitmapSize()
   return getFreeMapSize();
 }
 
+
 /* Return the block number of a block that is not currently assigned to a file
  * @return if successful, return block# of free block, otherwise return -1 (no free blocks)
  */
 int getUnusedBlock()
 {
-  for(int i = getFreeMapStart(); i < getFreeMapStart() + getFreeMapSize(); i++)
+  for(int i = getUserDataStart(); i < getNumBlocks(); i++)
   {
     // Maybe need to do i % blockSize() here or something to index into individual bytes
-    int free_index = i - getFreeMapStart();
-    if(FREE_MAP[free_index] == 0)
+    if(FREE_MAP[i] == 0)
       {
+        FREE_MAP[i] = 1;
         return i; //returns the block # of the unassigned block
       }
   }
@@ -66,13 +67,12 @@ void addRequest(disk_io_request* req)
 int getEmptyInode()
 {
   //this should dramatically speed up empty inode allocation
-  for(int i = getInodeMapStart(); i < getInodeMapStart() + getInodeMapSize(); i++)
+  for(int i = 0; i < MAX_INODES; i++)
   {
-    // Maybe need to do i % blockSize() here or something to index into individual bytes
-    int free_index = i - getInodeMapStart();
-    if(INODE_MAP[free_index] == 0)
+    if(INODE_MAP[i] == 0)
     {
-      return i;
+      INODE_MAP[i] = 1;
+      return i+getInodesStart();
     }
   }
   return -1; // DISK IS FULL
@@ -133,12 +133,12 @@ int getInode(const char* file)
         //I think this will skip requests to unallocated blocks but im autistic so it could be completely wrong
         continue;
       }
-      char* data = readFromBlock(i+1);
+      char* data = readFromBlock(i+getInodesStart());
       if(strncmp(data, file, MAX_FILENAME_SIZE) == 0)
         found = 1;
       delete[](data);
     }
-  if(found) return i+1;
+  if(found) return i-1+getInodesStart();
   else return -1;
 }
 
@@ -281,10 +281,7 @@ void CREATE(const char* filename)
     {
       char* data = new char[getBlockSize()]();
       memcpy(data, filename, strlen(filename));
-      
       writeToBlock(inod, data);
-      INODE_MAP[inod] = 1;
-      delete[] data;
     }
 }
 
@@ -339,8 +336,8 @@ void IMPORT(const char* ssfsFile, const char* unixFilename){
   CREATE(ssfsFile);
   printf("Created file\n");
 
-
   int inodeBlock = getInode(ssfsFile);
+  printf("block num %d\n", inodeBlock);
   inode* ino = getInodeFromBlockNumber(inodeBlock);
   ino->fileSize = filesize;
   int* indirs = new int[getBlockSize()/4]();
@@ -348,9 +345,9 @@ void IMPORT(const char* ssfsFile, const char* unixFilename){
   int* doubleIndirs1 = new int[getBlockSize()/4]();
 
   //i represents the # of blocks read at point in loop
-  char* read_buffer = new char[block_size]();
   for(int i = 0; i < (filesize + block_size)/block_size; i++) //add block size to filesize to avoid truncating
     {
+      char* read_buffer = new char[block_size]();
       int bytes_read;
       if((bytes_read = read(fd, read_buffer, block_size)) <= 0)
         {
@@ -396,12 +393,7 @@ void IMPORT(const char* ssfsFile, const char* unixFilename){
 
   if(ino->indirect!=0)
     writeToBlock(ino->indirect, (char*) indirs);
-  delete[] indirs;
-
   writeToBlock(inodeBlock, (char*) ino);
-  delete[] (char*) ino;
-
-  delete[] read_buffer;
 }
 
 /*
@@ -513,7 +505,6 @@ void DELETE(const char* fileName)
 
   char* asdf = new char[getBlockSize()]();
   writeToBlock(ino, asdf);
-  delete[] asdf;
 
   INODE_MAP[ino] = 0;
 }
@@ -754,8 +745,6 @@ process_ops(void* file_arg)
     string command;
     ss >> command;
 
-    cout << command << endl;
-
     if(command == "CREATE")
       {
         string fileName;
@@ -910,8 +899,6 @@ int getDataStart()
 }
 */
 
-
-
 int main(int argc, char const *argv[])
 {
   /* Parsing terminal inputs */
@@ -939,7 +926,7 @@ int main(int argc, char const *argv[])
     SUPER = new char[32];
     read(str->fd, SUPER, 32);
 
-    FREE_MAP = new char[getBitmapSize()];
+    FREE_MAP = new char[getNumBlocks()];
 
     pthread_create(&SCH_thread, NULL, SCH_run, (void*) str);
 
@@ -949,5 +936,5 @@ int main(int argc, char const *argv[])
       }
 
 	}
-  while(1);
+  while(!shut);
 }

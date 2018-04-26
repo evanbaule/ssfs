@@ -15,7 +15,7 @@ void* SCH_run(void* vec)
 
   while(1)
     {
-      if(isShutdown()) break;
+      if(isShutdown() && requests->size()==0) break;
       if(requests->size()==0)continue;
       pthread_mutex_lock(&lock);
       disk_io_request* req = requests->front();
@@ -24,9 +24,7 @@ void* SCH_run(void* vec)
 
       if(req->op == io_READ)
         {
-          printf("Waiting for lock in sched\n", req->op);
           pthread_mutex_lock(&req->lock);
-          printf("Acquired lock in sched\n", req->op);
           lseek(fd, req->block_number*getBlockSize(), SEEK_SET);
           read(fd, req->data, getBlockSize());
           req->done = 1;
@@ -35,10 +33,12 @@ void* SCH_run(void* vec)
         }
       else if (req->op == io_WRITE)
         {
-          printf("Writing data to file: %s\n", req->data);
+          printf("Writing data to file: %s to block: %d\n", req->data, req->block_number);
           lseek(fd, req->block_number*getBlockSize(), SEEK_SET);
           write(fd, req->data, getBlockSize());
+          delete[] req->data;
         }
     }
+  
   return NULL;
 }

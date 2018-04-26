@@ -33,14 +33,14 @@ enum Operation {
 };
 
 //"Low level" request that will be serviced by the disk scheduler
-typedef struct
+typedef struct disk_io_request
 {
 	int block_number; // Target block
 	Operation op = io_WRONG; // Indicated whether we are reading or writing data to/from block_number
 	char* data; // Will either be a pointer to the SOURCE LOCATION to write FROM ||OR|| the DESTINATION LOCATION to read TO
-  	pthread_cond_t waitFor;
-  	pthread_mutex_t lock;
-  	bool done;
+  pthread_cond_t waitFor;
+  pthread_mutex_t lock;
+  bool done;
 } disk_io_request;
 
 //Struct to contain file metadata (1 block in size)
@@ -61,7 +61,7 @@ typedef struct
 
 //Request abstraction functions
 char* readFromBlock(int i);
-void writeToBlock(int i; char* data);
+void writeToBlock(int i, char* data);
 
 //Access to memory storage metadata
 int getNumBlocks(); 
@@ -71,7 +71,7 @@ int getFreeMapSize();
 int getInodeMapStart();
 int getInodeMapSize();
 int getInodesStart();
-int getDataStart(); 
+int getUserDataStart(); 
 
 int getUnusedBlock();
 int getFreeByteMapInBlock(int block);
