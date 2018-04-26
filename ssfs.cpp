@@ -187,12 +187,9 @@ char* readFromBlock(int block)
 
   addRequest(req);
 
-  printf("Waiting for lock in readFromBlock\n");
   pthread_mutex_lock(&req->lock);
-  printf("Acquired lock in readFromBlock\n");
   while(!req->done)
     pthread_cond_wait(&req->waitFor, &req->lock);
-  printf("Signalled\n");
   pthread_mutex_unlock(&req->lock);
 
   return req->data;
@@ -332,12 +329,9 @@ void IMPORT(const char* ssfsFile, const char* unixFilename){
   /* Begins to read from unix file and inject blocks into the disk */
 
   DELETE(ssfsFile);
-  printf("Deleted file\n");
   CREATE(ssfsFile);
-  printf("Created file\n");
 
   int inodeBlock = getInode(ssfsFile);
-  printf("block num %d\n", inodeBlock);
   inode* ino = getInodeFromBlockNumber(inodeBlock);
   ino->fileSize = filesize;
   int* indirs = new int[getBlockSize()/4]();
@@ -410,20 +404,23 @@ void CAT(const char* fileName){
   int double_indirect_max_size = indirect_max_size + (getBlockSize()/sizeof(int)) * (getBlockSize()/sizeof(int));
 
   int ino = getInode(fileName);
-  if(ino == -1) return;
-
+  if(ino == -1)
+    {
+      printf("File doesnt exist\n");
+      return;
+    }
   inode* inod = getInodeFromBlockNumber(ino);
 
   int* indirect_block = (int*) readFromBlock(inod->indirect);
   //  int* double_indirect_block = (int*) readFromBlock(inod->doubleIndirect);
 
-  int file_blocks = inod->fileSize / getBlockSize();
+  int file_blocks = (int) ceil((double)inod->fileSize / getBlockSize());
   int fs = inod->fileSize;
   char* cat_buffer = new char[fs](); //will read blocks into this buffer
 
   for(int i = 0; i < file_blocks; i++)
   {
-    if(file_blocks < NUM_DIRECT_BLOCKS)
+    if(i < NUM_DIRECT_BLOCKS)
     {
       char* block_buffer = readFromBlock(inod->direct[i]);
       memcpy(cat_buffer + (i*getBlockSize()), block_buffer, getBlockSize());
@@ -443,14 +440,14 @@ void CAT(const char* fileName){
 
   //mutex to console to ensure contig. output
   pthread_mutex_lock(&CONSOLE_OUT_LOCK);
-  for(int i = 0; i < sizeof(cat_buffer); i++)
+  for(int i = 0; i < fs; i++)
   {
-    cout << cat_buffer[i];
+    printf("%c", cat_buffer[i]);
   }
-  cout << endl;
+  printf("\n");
   pthread_mutex_unlock(&CONSOLE_OUT_LOCK);
 
-  delete[] double_indirect_block;
+  //  delete[] double_indirect_block;
   delete[] indirect_block;
   delete[] inod;
 }
@@ -473,28 +470,28 @@ void DELETE(const char* fileName)
 
   inode* inod = getInodeFromBlockNumber(ino);
 
-  inod->fileSize = 0;
-
   for(int i =0;i<NUM_DIRECT_BLOCKS;i++)
     {
-      setByteMap(inod->direct[i], false);
+      FREE_MAP[inod->direct[i]]=0;
     }
 
   int* indirect_block = (int*) readFromBlock(inod->indirect);
+  if(inod->indirect)
   for(int i =0;i<getBlockSize()/4;i++)
     {
-      setByteMap(indirect_block[i], false);
+      FREE_MAP[indirect_block[i]] = 0;
     }
 
   delete[] (char*) indirect_block;
 
   int* dindirect_block = (int*) readFromBlock(inod->doubleIndirect);
+  if(inod->doubleIndirect)
   for(int i =0;i<getBlockSize()/4;i++)
     {
       int* indir_block = (int*) readFromBlock(dindirect_block[i]);
       for(int j=0;j<getBlockSize()/4;j++)
         {
-          setByteMap(indir_block[j], false);
+          FREE_MAP[indir_block[j]] = 0;
         }
       delete[] (char*) indir_block;
     }
@@ -505,7 +502,7 @@ void DELETE(const char* fileName)
   char* asdf = new char[getBlockSize()]();
   writeToBlock(ino, asdf);
 
-  INODE_MAP[ino] = 0;
+  INODE_MAP[ino-getInodesStart()] = 0;
 }
 
 /*
@@ -525,7 +522,7 @@ void WRITE(const char* fileName, char c, uint start, uint num)
 {
   int indirect_max_size = NUM_DIRECT_BLOCKS + getBlockSize()/sizeof(int); // # of blocks that can be refferenced by an indirect block
   int double_indirect_max_size = indirect_max_size + (getBlockSize()/sizeof(int)) * (getBlockSize()/sizeof(int));
-  
+
   int id = getInode(fileName);
   inode* inod = getInodeFromBlockNumber(id);
 
@@ -706,13 +703,12 @@ Read each valid inode and print out its filename and filesize members
 */
 void LIST()
 {
-  //We could dissect this to reduce critical section for output lock but I don't feel like doing that
   pthread_mutex_lock(&CONSOLE_OUT_LOCK);
-  cout << "FILE CONTENTS: " << endl;
-  for(int i = getInodeMapStart(); i < getInodeMapStart() + getInodeMapSize(); i++)
+  cout << "FILE CONTENTS " << endl;
+  for(int i = 0; i < MAX_INODES; i++)
   {
-    if(INODE_MAP[i - getInodeMapStart()] == -1) continue; // Skip unassigned inodes
-    inode* inod = getInodeFromBlockNumber(i);
+    if(INODE_MAP[i] == 0) continue;
+    inode* inod = getInodeFromBlockNumber(i+getInodesStart());
     cout << "FILE:\t" << inod->fileName << "\t" << inod->fileSize << endl;
   }
   pthread_mutex_unlock(&CONSOLE_OUT_LOCK);

@@ -1,3 +1,6 @@
 IMPORT ssfs.hpp ssfs.hpp
 IMPORT makedisk ssfs_mkdsk.cpp
+LIST
+DELETE makedisk
+LIST
 SHUTDOWN

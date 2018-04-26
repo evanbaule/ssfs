@@ -33,13 +33,12 @@ void* SCH_run(void* vec)
         }
       else if (req->op == io_WRITE)
         {
-          printf("Writing data to file: %s to block: %d\n", req->data, req->block_number);
           lseek(fd, req->block_number*getBlockSize(), SEEK_SET);
           write(fd, req->data, getBlockSize());
           delete[] req->data;
         }
     }
-  
+
   //Writeback byte maps
   lseek(fd, getFreeMapStart()*getBlockSize(), SEEK_SET);
   for(int i = 0; i < getFreeMapSize(); i++)

@@ -13,7 +13,9 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <math.h>
 #include "scheduler.hpp"
+
 using namespace std;
 
 /* Constants */
