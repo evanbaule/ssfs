@@ -40,5 +40,18 @@ void* SCH_run(void* vec)
         }
     }
   
+  //Writeback byte maps
+  lseek(fd, getFreeMapStart()*getBlockSize(), SEEK_SET);
+  for(int i = 0; i < getFreeMapSize(); i++)
+  {
+    write(fd, FREE_MAP + (i * getBlockSize()), getBlockSize());
+  }
+
+  lseek(fd, getInodeMapStart()*getBlockSize(), SEEK_SET);
+  for(int i = 0; i < getInodeMapSize(); i++)
+  {
+    write(fd, INODE_MAP + (i * getBlockSize()), getBlockSize());
+  }
+
   return NULL;
 }
