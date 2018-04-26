@@ -7,34 +7,57 @@ pthread_t SCH_thread;
 
 /*byte array of the disk in memory*/
 char* DISK;
+char* SUPER;
+char* FREE_MAP;
+char* INODE_MAP;
 
 /*Any access to the DISK array should be locked by this*/
 pthread_mutex_t DISK_LOCK = PTHREAD_MUTEX_INITIALIZER;
 
+/*Lock to protect output to console to ensure clean printing */
 pthread_mutex_t CONSOLE_OUT_LOCK = PTHREAD_MUTEX_INITIALIZER;
 
 pthread_mutex_t REQUESTS_LOCK = PTHREAD_MUTEX_INITIALIZER;
 
+/* Workload queue that will be serviced by the disk scheduler*/
 queue<disk_io_request*>* requests = new queue<disk_io_request*>;
 
 bool shut=0;
 bool isShutdown() {return shut;}
 
-int getBitmapSize()
+//Just an alias that I'm too scared to consolidate
+int 
+getBitmapSize()
 {
-  return (getNumBlocks()/getBlockSize());
+  return getFreeMapSize();
 }
 
+/* Return the block number of a block that is not currently assigned to a file
+ * @return if successful, return block# of free block, otherwise return -1 (no free blocks)
+ */
 int getUnusedBlock()
 {
+  for(int i = getFreeMapStart(); i < getFreeMapStart() + getFreeMapSize(); i++)
+  {
+    // Maybe need to do i % blockSize() here or something to index into individual bytes
+    int free_index = i - getFreeMapStart();
+    if(FREE_MAP[free_index] == 0)
+    {
+      return i; //returns the block # of the unassigned block
+    }
+  }
+  return -1;
+  /* DEPRECATED 
   for(int i=257;i<getNumBlocks();i++)
     {
       int asdf = getFreeByteMapInBlock(i);
       if(asdf != -1) return asdf;
     }
   return -1;
+  */
 }
 
+//Push a request onto the disk scheduler workload queue
 void addRequest(disk_io_request* req)
 {
   pthread_mutex_lock(&REQUESTS_LOCK);
@@ -42,12 +65,33 @@ void addRequest(disk_io_request* req)
   pthread_mutex_unlock(&REQUESTS_LOCK);
 }
 
+/* Return the block number of an inode that is not currently assigned to a file
+ * @return block number of found empty inode, otherwise return -1 (no free blocks)
+ */
 int getEmptyInode()
 {
+  //this should dramatically speed up empty inode allocation
+  for(int i = getInodeMapStart(); i < getInodeMapStart() + getInodeMapSize(); i++)
+  {
+    // Maybe need to do i % blockSize() here or something to index into individual bytes
+    int free_index = i - getInodeMapStart();
+    if(INODE_MAP[free_index] == 0)
+    {
+      return i;
+    }
+  }
+  return -1; // DISK IS FULL
+  /* DEPRECATED
   bool found=0;
+  //Indexing is all off for this
   int i;
   for(i=0;i<MAX_INODES && !found;i++)
     {
+      //If we find
+      if(INODE_MAP[i] == 0)
+      {
+        return i+1;
+      }
       disk_io_request req;
       req.op = io_READ;
       char* data = new char[getBlockSize()];
@@ -75,21 +119,25 @@ int getEmptyInode()
     }
   if(found) return i+1;
   else return -1;
+  */
 }
 
-/*
-int getDataStart()
-{
-  return (getBlockSize() + MAX_INODES*getBlockSize() + getBitmapSize());
-}
+/* 
+Retrieve the index of an inode that contains argument file name
+@param file : name of file associated with the inode
+@return the block number of the inode if it exists, -1 if it doesn't exist
 */
-
 int getInode(const char* file)
 {
   bool found=0;
   int i;
   for(i=0;i<MAX_INODES && !found;i++)
     {
+      if(INODE_MAP[(i - getInodeMapStart())])
+      {
+        //I think this will skip requests to unallocated blocks but im autistic so it could be completely wrong
+        continue;
+      }
       disk_io_request req;
       req.op = io_READ;
       char* data = new char[getBlockSize()];
@@ -119,6 +167,11 @@ int getInode(const char* file)
   else return -1;
 }
 
+/* 
+Retrieve inode data from index number given by passing filename into getInode() func
+@param ind : index in inode table of the inode bytes
+@return a pointer to the inode constructed by the casting of data in block \ind
+ */
 inode* getInodeFromBlockNumber(int ind)
 {
   disk_io_request req;
@@ -139,6 +192,13 @@ inode* getInodeFromBlockNumber(int ind)
   return (inode*) data;
 }
 
+/* 
+Adds an io_WRITE request to the disk scheduler workload buffer 
+@param
+  - block : block number to write to (offset write() syscall by block*blocksize)
+  - data  : char[blocksize] containing the data that will be written by the syscall
+@return void
+*/
 void writeToBlock(int block, char* data)
 {
   disk_io_request req;
@@ -148,6 +208,12 @@ void writeToBlock(int block, char* data)
   addRequest(&req);
 }
 
+/* 
+Adds an io_READ request to the disk scheduler workload buffer 
+@param
+  - block : block number to read from (offset read() syscall by block*blocksize)
+@return char[blocksize] pointer to buffer containing data read from disk
+*/
 char* readFromBlock(int block)
 {
   disk_io_request req;
@@ -166,6 +232,13 @@ char* readFromBlock(int block)
   return req.data;
 }
 
+/*
+Flips the bytemap respective to a blog to indicate that the block has been either assigned or released
+@param
+  - block : block number being changed (index in map)
+  - flag  : whether we are indicating that the block is now taken or free
+@return void
+*/
 void setByteMap(int block, bool flag)
 {
   if(block < 1+256+getBitmapSize()) return;
@@ -182,6 +255,11 @@ void setByteMap(int block, bool flag)
   delete data;
 }
 
+/*
+Look to see if a particular block is free or taken
+@param block : block number to check availability of
+@return if(block is taken)
+*/
 bool getByteMap(int block)
 {
   if(block < 1+256+getBitmapSize()) return 1;
@@ -197,6 +275,7 @@ bool getByteMap(int block)
   return tmp;
 }
 
+// ???
 int getFreeByteMapInBlock(int block)
 {
   if(block < 1+256+getBitmapSize()) return -1;
@@ -218,13 +297,13 @@ int getFreeByteMapInBlock(int block)
 }
 
 /*
-int getStartOfDataBlocks()
-{
-  return getBlockSize() + MAX_INODES*getBlockSize() + ((getBitmapSize()*4)/getBlockSize() + ((getBitmapSize()*4)%getBlockSize()!=0))*getBlockSize();
-}
+-- SPEC --
+Causes  SSFS  to  create  a new file  named <SSFS file name>. If  <SSFS file name> exists,  the command should  fail. SSFS  does  not support directories/folders,  so  all file  names should  be  unique.
+----------
+
+@param filename: name of file to be created (inode->filename)
+@return void
 */
-
-
 void CREATE(const char* filename)
 {
   if(filename[0] == 0)
@@ -244,6 +323,17 @@ void CREATE(const char* filename)
     }
 }
 
+/*
+-- SPEC --
+This  command causes  the contents  of  <SSFS file name>, if  any,  to  be  overwritten by  the contents  of  the linux file  (in the CS  file  system) named <unix file name>. If  a file  named <SSFS file name> does not yet exist in SSFS, then  a new one should  be  created to  contain the contents  of  <unix file name>.
+----------
+
+Reads from unixFileName in blocksize chunks and pushes io_WRITE requests to the scheduler buffer to write the blocks to ssfsFileName
+@param
+  - ssfsFile : name of file on disk to be overwritten | created
+  - unixFileName : name of file to be imported into SSFS
+@return void
+*/
 void IMPORT(const char* ssfsFile, const char* unixFilename){
   /* Initializing */
   uint block_size = getBlockSize();
@@ -348,6 +438,15 @@ void IMPORT(const char* ssfsFile, const char* unixFilename){
   delete[] (char*) ino;
 }
 
+/*
+-- SPEC --
+This  command displays  the contents  of  <SSFS file name> on the screen, just  like  the unix  cat command.
+----------
+
+Issues read requests for blocks of fileName and pushes them into a buffer, then outputs each character in the buffer one at a time to the output stream
+@param fileName : name of file on disk to be read from
+@return void
+*/
 void CAT(const char* fileName){
   int indirect_max_size = NUM_DIRECT_BLOCKS + getBlockSize()/sizeof(int); // # of blocks that can be refferenced by an indirect block
   int double_indirect_max_size = indirect_max_size + (getBlockSize()/sizeof(int)) * (getBlockSize()/sizeof(int));
@@ -362,7 +461,7 @@ void CAT(const char* fileName){
 
   int file_blocks = inod->fileSize / getBlockSize();
   int fs = inod->fileSize;
-  char* cat_buffer = new char[fs](); //will reach blocks into this buffer
+  char* cat_buffer = new char[fs](); //will read blocks into this buffer
 
   for(int i = 0; i < file_blocks; i++)
   {
@@ -399,6 +498,17 @@ void CAT(const char* fileName){
   delete[] inod;
 }
 
+/*
+-- SPEC --
+Remove  the file  named <SSFS file name> from SSFS, and free  all of  its blocks, including the inode,  all data blocks, and all indirect  blocks associated with  the file.
+----------
+
+Removes inode associated with fileName from the tables that mark it as being in use, allowing it to be readily overwritten
+  - We DO NOT wipe the data
+@param
+  - fileName : name of file on disk to be deleted
+@return void
+*/
 void DELETE(const char* fileName)
 {
   int ino = getInode(fileName);
@@ -440,6 +550,19 @@ void DELETE(const char* fileName)
   delete[] asdf;
 }
 
+/*
+-- SPEC --
+Write <num bytes> copies  of  character <char> into file  <SSFS file name>, beginning at byte <startbyte>. If there are fewer than  <start byte> bytes  in  the file, the command should  report  an  error.  If there are fewer than  <start byte> + <num bytes> bytes  in  the file  before  the command runs, the file  should  be appended  to  make  room  for the extra characters. If  not enough  free  file  blocks  exist to  complete  the WRITE command, you may either  write as  many  bytes as  you can and then  abort the command,  or  just  not carry out the command,  instead returning an  error message.  (You  may choose  whichever of  those two options you prefer.)
+----------
+
+Copies &c into fileName from start to (start + num)
+@param
+  - fileName : name of file on disk to be written to
+  - c        : character to write into bytes
+  - start    : byte number to start writing at
+  - num      : number of copies of c to write
+@return void
+*/
 void WRITE(const char* fileName, char c, uint start, uint num)
 {
   int indirect_max_size = NUM_DIRECT_BLOCKS + getBlockSize()/sizeof(int); // # of blocks that can be refferenced by an indirect block
@@ -537,7 +660,18 @@ void WRITE(const char* fileName, char c, uint start, uint num)
   delete inod;
 }
 
+/*
+-- SPEC --
+This  command should  display <num bytes> of  file  <SSFS file name>, starting  at  byte  <start byte>.
+----------
 
+Read n bytes from file starting at given start point and send to cout
+@param
+  - fileName : name of file on disk to be read
+  - start    : byte number to start reading at
+  - num      : number of bytes to read
+@return void
+*/
 void READ(const char* fileName, uint start, uint num)
 {
   int indirect_max_size = NUM_DIRECT_BLOCKS + getBlockSize()/sizeof(int); // # of blocks that can be refferenced by an indirect block
@@ -590,18 +724,49 @@ void READ(const char* fileName, uint start, uint num)
   delete[] inod;
 }
 
+/*
+-- SPEC --
+Closes the  DISK  file  after the Disk  Scheduler thread  has finished  servicing all pending requests, and exits the ssfs
+process.
+----------
+
+Signals the system to shutdown - which will block injections into the request queue and allow the system to finish servicing pending requests
+@return void
+*/
 void SHUTDOWN()
 {
   shut = 1;
 }
 
+/*
+-- SPEC --
+List  all the names and sizes of  the files in  SSFS.
+----------
+
+Read each valid inode and print out its filename and filesize members
+@return void
+*/
 void LIST()
 {
-
+  //We could dissect this to reduce critical section for output lock but I don't feel like doing that
+  pthread_mutex_lock(&CONSOLE_OUT_LOCK);
+  cout << "FILE CONTENTS: " << endl;
+  for(int i = getInodeMapStart(); i < getInodeMapStart() + getInodeMapSize(); i++)
+  {
+    if(INODE_MAP[i - getInodeMapStart()] == -1) continue; // Skip unassigned inodes
+    inode* inod = getInode(i);
+    cout << "FILE:\t" << inod->fileName << "\t" << inod->fileSize << endl;
+  }
+  pthread_mutex_unlock(&CONSOLE_OUT_LOCK);
 }
 
 int thread = 0;
 
+/*
+Thread worker function to process text files and build appropriate requests for the disk scheduler thread (max 4 threads)
+@param file_arg as text file containing valid commands to input to the fs
+@return void*
+*/
 void*
 process_ops(void* file_arg)
 {
@@ -690,15 +855,65 @@ process_ops(void* file_arg)
 	return NULL;
 }
 
+char* //SUPER is stored in memory upon startup
+getSUPER()
+{
+ return SUPER;
+}
+
+int
+getNumBlocks()
+{
+  return ((int*) SUPER)[0];
+}
+
+int
+getBlockSize()
+{
+  return ((int*) SUPER)[1];
+}
+
+int
+getFreeMapStart()
+{
+  return ((int*) SUPER)[2];
+}
+
+int
+getFreeMapSize()
+{
+  return ((int*) SUPER)[3];
+}
+
+int
+getInodeMapStart()
+{
+  return ((int*) SUPER)[4];
+}
+
+int
+getInodeMapSize()
+{
+  return ((int*) SUPER)[5];
+}
+
+int
+getInodesStart()
+{
+  return ((int*) SUPER)[6];
+}
+
+int
+getUserDataStart()
+{
+  return ((int*) SUPER)[7];
+}
+
+/* DEPRECATED
 char*
 getDisk()
 {
   return DISK;
-}
-
-int getBlockSize()
-{
-  return ((int*) DISK)[1];
 }
 
 int getNumBlocks()
@@ -706,28 +921,31 @@ int getNumBlocks()
   return ((int*) DISK)[0];
 }
 
+int getBlockSize()
+{
+  return ((int*) DISK)[1];
+}
+//Returns the block number where the free map begins
+int getFreeMapStart()
+{
+  return ((int*) DISK)[2];
+}
+//Returns the block number where the inode map begins
+int getInodeMapStart()
+{
+  return ((int*) DISK)[3];
+}
+//Returns the block number where we begin to store inodes and user data blocks
+int getDataStart()
+{
+  return ((int*) DISK)[4];
+}
+*/
+
+
+
 int main(int argc, char const *argv[])
 {
-  /*Read all bytes of the DISK file into the DISK variable
-
-  if(i/getBlockSize() < NUM_DIRECT_BLOCKS)
-    {
-      //WARNING: NOT CHECKING FOR UNALLOCATED BLOCKS AT THIS POINT
-      memcpy(&inod->direct[curr_block] + (i%getBlockSize()), &c, sizeof(char)); 
-    }
-
-    else if(curr_block >= NUM_DIRECT_BLOCKS && curr_block < indirect_max_size) //write to first indir block
-    {
-      memcpy(&inod->indirect[curr_block - NUM_DIRECT_BLOCKS] + (i % getBlockSize(), &c, sizeof(char));
-    }
-
-    else if(curr_block >= max_indirect_size && curr_block < double_indirect_max_size)
-    {
-      int indir_block = inod->doubleIndirect[(curr_block - (NUM_DIRECT_BLOCKS + (getBlockSize()/sizeof(int)))) / (getBlockSize() / sizeof(int))];
-      memcpy(&indir_block[curr_block - (NUM_DIRECT_BLOCKS + (getBlockSize() / sizeof(int))) + (i%getBlockSize())], &c, sizeof(char));
-    }
-
-  */
   {
     ifstream ifs("DISK", ios::binary|ios::ate);
     ifstream::pos_type pos = ifs.tellg();
@@ -749,6 +967,7 @@ int main(int argc, char const *argv[])
 			exit(EXIT_FAILURE);
 		}
 		cout << "argc:\t" << argc << endl;
+
 		/*
       Creates n pthreads and passes in the appropriate file names to the worker func
       changed ur giant shit fest to 3 lines u baboon
@@ -769,4 +988,3 @@ int main(int argc, char const *argv[])
 	}
   while(1);
 }
-

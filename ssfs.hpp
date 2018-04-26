@@ -100,9 +100,17 @@ typedef struct
   pthread_mutex_t diskLock;
 } SCH_struct;
 
-int getBlockSize();
-int getNumBlocks();
-char* getDisk();
+char* getDisk(); 
+//METADATA INFORMATION KEPT IN MEMORY
+int getNumBlocks(); 
+int getBlockSize(); 
+int getFreeMapStart(); 
+int getFreeMapSize(); 
+int getInodeMapStart();
+int getInodeMapSize();
+int getInodesStart();
+int getDataStart(); 
+
 
 void shutdown();
 bool isShutdown();
