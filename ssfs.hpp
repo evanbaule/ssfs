@@ -1,5 +1,5 @@
-#ifndef SSFS_HPP
-#define SSFS_HPP
+#ifndef SSFS_HPP_G
+#define SSFS_HPP_G
 
 #include <stdio.h>
 #include <iostream>
@@ -13,87 +13,44 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include "scheduler.hpp"
+using namespace std;
 
-// Identifies the disk io operation to performed by a disk_io_request within scheduler workload buffer
+/* Constants */
+#define MAX_FILENAME_SIZE 32
+#define NUM_DIRECT_BLOCKS 12
+#define MIN_BLOCK_SIZE 128
+#define MAX_BLOCK_SIZE 512
+#define MIN_DISK_SIZE 1024
+#define MAX_DISK_SIZE 128000 //technically 131,072 but thats a nitpick
+#define MAX_INODES 256
+
+//Identifies the io operation in a disk_io_request
 enum Operation {
 	io_READ,
 	io_WRITE,
   io_WRONG
 };
 
-/* Flow: Each thread will *instead of adding a reqeust 
-   to the buffer* call the corresponding function which will 
-   pass n disk_io_requests to the scheduler depending on how many 
-   blocks to read or write, which the scheduler will service one at a time */
+//"Low level" request that will be serviced by the disk scheduler
 typedef struct
 {
-	uint block_number; // Target block
+	int block_number; // Target block
 	Operation op = io_WRONG; // Indicated whether we are reading or writing data to/from block_number
 	char* data; // Will either be a pointer to the SOURCE LOCATION to write FROM ||OR|| the DESTINATION LOCATION to read TO
-  pthread_cond_t waitFor;
-  pthread_mutex_t lock;
-  bool done;
+  	pthread_cond_t waitFor;
+  	pthread_mutex_t lock;
+  	bool done;
 } disk_io_request;
 
-
-#include "scheduler.hpp"
-
-/* Constants */
-#define MAX_FILENAME_SIZE 32
-#define NUM_DIRECT_BLOCKS 12
-
-/* File Meta - Data */
+//Struct to contain file metadata (1 block in size)
 typedef struct {
   char fileName[MAX_FILENAME_SIZE]; // Max 32 chars
-  uint fileSize;
-  uint direct[NUM_DIRECT_BLOCKS];
-  uint indirect;
-  uint doubleIndirect;
+  int fileSize;
+  int direct[NUM_DIRECT_BLOCKS];
+  int indirect;
+  int doubleIndirect;
 } inode;
-
-char* readFromBlock(int i);
-
-int getUnusedBlock();
-
-int getFreeByteMapInBlock(int block);
-
-bool getByteMap(int block);
-
-void setByteMap(int block, bool flag);
-
-void CREATE(const char* filename);
-
-void IMPORT(const char* ssfsFile, const char* unixFilename);
-
-void CAT(const char* fileName);
-
-void DELETE(const char* fileName);
-
-void WRITE(const char* fileName, char c, uint start, uint num);
-
-void READ(const char* fileName, uint start, uint num);
-
-int getEmptyInode();
-
-int getInode(const char* file);
-
-inode* getInodeFromIndex(int ind);
-
-int getStartOfDataBlocks();
-
-void SHUTDOWN();
-
-#define MIN_BLOCK_SIZE 128
-#define MAX_BLOCK_SIZE 512
-
-#define MIN_DISK_SIZE 1024
-#define MAX_DISK_SIZE 128000 //technically 131,072 but thats a nitpick
-
-#define MAX_INODES 256
-
-using namespace std;
-
-typedef unsigned int uint;
 
 typedef struct
 {
@@ -102,7 +59,11 @@ typedef struct
   int fd;
 } SCH_struct;
 
-//METADATA INFORMATION KEPT IN MEMORY
+//Request abstraction functions
+char* readFromBlock(int i);
+void writeToBlock(int i; char* data);
+
+//Access to memory storage metadata
 int getNumBlocks(); 
 int getBlockSize(); 
 int getFreeMapStart(); 
@@ -112,9 +73,26 @@ int getInodeMapSize();
 int getInodesStart();
 int getDataStart(); 
 
+int getUnusedBlock();
+int getFreeByteMapInBlock(int block);
+bool getByteMap(int block);
+void setByteMap(int block, bool flag);
+int getEmptyInode();
+int getInode(const char* file);
+inode* getInodeFromIndex(int ind);
+int getStartOfDataBlocks();
+
+// SSFS Disk operations
+void CREATE(const char* filename);
+void IMPORT(const char* ssfsFile, const char* unixFilename);
+void CAT(const char* fileName);
+void DELETE(const char* fileName);
+void WRITE(const char* fileName, char c, int start, int num);
+void READ(const char* fileName, int start, int num);
+void LIST();
+void SHUTDOWN();
 
 void shutdown();
 bool isShutdown();
-
 
 #endif

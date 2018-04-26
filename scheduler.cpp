@@ -4,6 +4,8 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+typedef struct disk_io_request disk_io_request;
+
 void* SCH_run(void* vec)
 {
   SCH_struct* str = (SCH_struct*) vec;
