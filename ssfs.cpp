@@ -11,9 +11,6 @@ char* SUPER;
 char* FREE_MAP;
 char* INODE_MAP;
 
-/*Any access to the DISK array should be locked by this*/
-pthread_mutex_t DISK_LOCK = PTHREAD_MUTEX_INITIALIZER;
-
 /*Lock to protect output to console to ensure clean printing */
 pthread_mutex_t CONSOLE_OUT_LOCK = PTHREAD_MUTEX_INITIALIZER;
 
@@ -26,7 +23,7 @@ bool shut=0;
 bool isShutdown() {return shut;}
 
 //Just an alias that I'm too scared to consolidate
-int 
+int
 getBitmapSize()
 {
   return getFreeMapSize();
@@ -122,7 +119,7 @@ int getEmptyInode()
   */
 }
 
-/* 
+/*
 Retrieve the index of an inode that contains argument file name
 @param file : name of file associated with the inode
 @return the block number of the inode if it exists, -1 if it doesn't exist
@@ -133,7 +130,7 @@ int getInode(const char* file)
   int i;
   for(i=0;i<MAX_INODES && !found;i++)
     {
-      if(INODE_MAP[(i - getInodeMapStart())])
+      if(INODE_MAP[i])
       {
         //I think this will skip requests to unallocated blocks but im autistic so it could be completely wrong
         continue;

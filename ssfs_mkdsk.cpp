@@ -16,7 +16,7 @@ int main(int argc, char** argv)
   int free_map_size = numBlocks / blockSize;
 
   int loc_imap = loc_freemap + (free_map_size);
-  int imap_size = (256*4) / blockSize; //we need to map 256 inodes (256 integer block numbers (4b each))
+  int imap_size = (256) / blockSize; //we need to map 256 inodes (256 integer block numbers (4b each))
 
   int loc_inodes_start = loc_imap + imap_size;
 
@@ -33,7 +33,7 @@ int main(int argc, char** argv)
   fout.write((char*)&imap_size, 4);
   fout.write((char*)&loc_inodes_start, 4);
   fout.write((char*)&loc_data_start, 4);
-  for(int i = sizeof(numBlocks)+sizeof(blockSize); i < numBlocks * blockSize;i++)
+  for(int i = 32; i < numBlocks * blockSize;i++)
     fout.write(&a, 1);
 
   fout.close();
