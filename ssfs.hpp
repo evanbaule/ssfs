@@ -71,7 +71,11 @@ int getFreeMapSize();
 int getInodeMapStart();
 int getInodeMapSize();
 int getInodesStart();
-int getUserDataStart(); 
+int getUserDataStart();
+
+char* getSUPER();
+char* getFREE_MAP();
+char* getINODE_MAP();
 
 int getUnusedBlock();
 int getFreeByteMapInBlock(int block);
