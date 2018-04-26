@@ -5,8 +5,6 @@ using namespace std;
 pthread_t op_thread[4];
 pthread_t SCH_thread;
 
-/*byte array of the disk in memory*/
-char* DISK;
 char* SUPER;
 char* FREE_MAP;
 char* INODE_MAP;
@@ -135,26 +133,7 @@ int getInode(const char* file)
         //I think this will skip requests to unallocated blocks but im autistic so it could be completely wrong
         continue;
       }
-      disk_io_request req;
-      req.op = io_READ;
-      char* data = new char[getBlockSize()];
-      uint blockNumber = i+1;
-      req.data = data;
-      req.block_number = blockNumber;
-      req.done = 0;
-
-      pthread_mutex_init( &req.lock, NULL);
-      pthread_cond_init( &req.waitFor, NULL);
-
-      addRequest(&req);
-
-      //cout << "getInode() Fetching block " << blockNumber << endl;
-
-      pthread_mutex_lock(&req.lock);
-      while(!req.done){
-        pthread_cond_wait(&req.waitFor, &req.lock);
-      }
-      pthread_mutex_unlock(&req.lock);
+      char* data = readFromBlock(i+1);
 
       if(strncmp(data, file, MAX_FILENAME_SIZE) == 0)
         found = 1;
@@ -164,33 +143,18 @@ int getInode(const char* file)
   else return -1;
 }
 
-/* 
+/*
 Retrieve inode data from index number given by passing filename into getInode() func
 @param ind : index in inode table of the inode bytes
 @return a pointer to the inode constructed by the casting of data in block \ind
  */
 inode* getInodeFromBlockNumber(int ind)
 {
-  disk_io_request req;
-  req.op = io_READ;
-  char* data = new char[getBlockSize()];
-  uint blockNumber = ind;
-  req.data = data;
-  req.block_number = blockNumber;
-
-  req.waitFor = PTHREAD_COND_INITIALIZER;
-  req.lock = PTHREAD_MUTEX_INITIALIZER;
-
-  addRequest(&req);
-
-  while(!req.done)
-    pthread_cond_wait(&req.waitFor, &req.lock);
-
-  return (inode*) data;
+  return (inode*) readFromBlock(ind);
 }
 
-/* 
-Adds an io_WRITE request to the disk scheduler workload buffer 
+/*
+Adds an io_WRITE request to the disk scheduler workload buffer
 @param
   - block : block number to write to (offset write() syscall by block*blocksize)
   - data  : char[blocksize] containing the data that will be written by the syscall
@@ -205,7 +169,7 @@ void writeToBlock(int block, char* data)
   addRequest(&req);
 }
 
-/* 
+/*
 Adds an io_READ request to the disk scheduler workload buffer 
 @param
   - block : block number to read from (offset read() syscall by block*blocksize)
@@ -218,11 +182,13 @@ char* readFromBlock(int block)
   req.data = new char[getBlockSize()]();
   req.block_number = block;
 
-  req.waitFor = PTHREAD_COND_INITIALIZER;
-  req.lock = PTHREAD_MUTEX_INITIALIZER;
+  pthread_mutex_init( &req.lock, NULL);
+  pthread_cond_init( &req.waitFor, NULL);
 
+  pthread_mutex_lock(&req.lock);
   while(!req.done)
     pthread_cond_wait(&req.waitFor, &req.lock);
+  pthread_mutex_unlock(&req.lock);
 
   addRequest(&req);
 
@@ -384,9 +350,10 @@ void IMPORT(const char* ssfsFile, const char* unixFilename){
   for(int i = 0; i < (filesize + block_size)/block_size; i++) //add block size to filesize to avoid truncating
   {
     int bytes_read;
-    if((bytes_read = read(fd, &read_buffer, block_size)) != block_size)
+    if((bytes_read = read(fd, &read_buffer, block_size)) <= 0)
     {
-      cerr << "Read the wrong number of bytes into read_buffer OR maybe reached end of the file. Not sure tbh - EMB" << endl;
+      if(bytes_read == -1)
+        cerr << "Error reading file" << endl;
       break;
     }
 
@@ -943,16 +910,6 @@ int getDataStart()
 
 int main(int argc, char const *argv[])
 {
-  {
-    ifstream ifs("DISK", ios::binary|ios::ate);
-    ifstream::pos_type pos = ifs.tellg();
-
-    DISK = new char[pos];
-
-    ifs.seekg(0, ios::beg);
-    ifs.read(DISK, pos);
-  }
-
   /* Parsing terminal inputs */
 	vector<string> ops;
 	if(argc > 2)
@@ -968,20 +925,21 @@ int main(int argc, char const *argv[])
 		/*
       Creates n pthreads and passes in the appropriate file names to the worker func
       changed ur giant shit fest to 3 lines u baboon
-     */
+    */
+
+    /*scheduler thread*/
+    SCH_struct* str = new SCH_struct;
+    str->requests = requests;
+    str->lock = REQUESTS_LOCK;
+    pthread_create(&SCH_thread, NULL, SCH_run, (void*) str);
+
+    SUPER = readFromBlock(0);
 
     for(int i = 2; i < argc;i++)
       {
         pthread_create(&op_thread[i-2], NULL, process_ops, (void*)argv[i]);
       }
 
-    /*scheduler thread*/
-    SCH_struct* str = new SCH_struct;
-    str->requests = requests;
-    str->lock = REQUESTS_LOCK;
-    //    pthread_create(&SCH_thread, NULL, SCH_run, (void*) str);
-
-    SCH_run((void*) str);
 	}
   while(1);
 }

@@ -38,6 +38,8 @@ typedef struct
 
 #include "scheduler.hpp"
 
+char* readFromBlock(int i);
+
 /* Constants */
 #define MAX_FILENAME_SIZE 32
 #define NUM_DIRECT_BLOCKS 12
