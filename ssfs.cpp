@@ -527,7 +527,7 @@ void WRITE(const char* fileName, char c, uint start, uint num)
   inode* inod = getInodeFromBlockNumber(id);
 
   char* start_block = new char[getBlockSize()]();
-  for(int i = start; i < getBlockSize() ;i++)
+  for(int i = start; i < getBlockSize(); i++)
   {
     memcpy(start_block + i, &c, sizeof(char));
     //Should cover corner case where (start + num) < blocksize so we only write 1 block */
@@ -556,7 +556,9 @@ void WRITE(const char* fileName, char c, uint start, uint num)
       //If we're writing to the first block we start @ \start
       if(curr_block == 0)
       {
-        writeToBlock(inod->direct[curr_block], start_block);
+        char* data = new char[getBlockSize()]();
+        memcpy(data, start_block, getBlockSize());
+        writeToBlock(inod->direct[curr_block], data);
       }
       //If we only wrote one block
       if(last_block == 0)
@@ -566,12 +568,16 @@ void WRITE(const char* fileName, char c, uint start, uint num)
       //If we're writing to the last block
       if(curr_block == last_block)
       {
+        char* data = new char[getBlockSize()]();
+        memcpy(data, end_block, getBlockSize());
         writeToBlock(inod->direct[curr_block], end_block);
         break;
       }
       //Writing to some block full of &c*blocksize in the middle
       else 
       {
+        char* data = new char[getBlockSize()]();
+        memcpy(data, middle_block, getBlockSize());
         writeToBlock(inod->direct[curr_block], middle_block);
       }
     }
@@ -581,11 +587,17 @@ void WRITE(const char* fileName, char c, uint start, uint num)
 
       if(curr_block == last_block)
       {
+        char* data = new char[getBlockSize()]();
+        memcpy(data, end_block, getBlockSize());
+        writeToBlock(inod->direct[curr_block], end_block);
         writeToBlock(destination_block_num, end_block);
         break;
       }
       else 
       {
+        char* data = new char[getBlockSize()]();
+        memcpy(data, end_block, getBlockSize());
+        writeToBlock(inod->direct[curr_block], end_block);
         writeToBlock(destination_block_num, middle_block);
       }
       delete[] indirect_block;
