@@ -526,25 +526,25 @@ void WRITE(const char* fileName, char c, uint start, uint num)
   int id = getInode(fileName);
   inode* inod = getInodeFromBlockNumber(id);
 
-  char* start_block;
-  for(int i = start; i < getBlockSize(); i++)
+  char* start_block = new char[getBlockSize()]();
+  for(int i = start; i < getBlockSize() i++)
   {
-    memcpy(&start_block + i, &c, sizeof(char));
+    memcpy(start_block + i, &c, sizeof(char));
     //Should cover corner case where (start + num) < blocksize so we only write 1 block */
     if(i == (start + num))
     {
       break;
     }
   }
-  char* middle_block;
+  char* middle_block = new char[getBlockSize()]();
   for(int i = 0; i < getBlockSize(); i++)
   {
-    memcpy(&middle_block + i, &c, sizeof(char));
+    memcpy(middle_block + i, &c, sizeof(char));
   }
-  char* end_block;
-  for(int i = 0; i < (i+num) % getBlockSize(); i++)
+  char* end_block = new char[getBlockSize()]();
+  for(int i = 0; i < num % getBlockSize(); i++)
   {
-    memcpy(&end_block + i, &c, sizeof(char));
+    memcpy(end_block + i, &c, sizeof(char));
   }
 
   int last_block = (start + num)/getBlockSize();
