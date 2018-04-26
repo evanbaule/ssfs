@@ -527,7 +527,7 @@ void WRITE(const char* fileName, char c, uint start, uint num)
   inode* inod = getInodeFromBlockNumber(id);
 
   char* start_block = new char[getBlockSize()]();
-  for(int i = start; i < getBlockSize() i++)
+  for(int i = start; i < getBlockSize() ;i++)
   {
     memcpy(start_block + i, &c, sizeof(char));
     //Should cover corner case where (start + num) < blocksize so we only write 1 block */

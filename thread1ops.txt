@@ -1,6 +1,5 @@
-IMPORT ssfs.hpp ssfs.hpp
-IMPORT makedisk ssfs_mkdsk.cpp
+CREATE test.txt
+WRITE test.txt a 10 512
 LIST
-DELETE makedisk
-LIST
+WRITE test.txt b 300 511
 SHUTDOWN
