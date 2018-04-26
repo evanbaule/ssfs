@@ -415,7 +415,7 @@ void CAT(const char* fileName){
   inode* inod = getInodeFromBlockNumber(ino);
 
   int* indirect_block = (int*) readFromBlock(inod->indirect);
-  int* double_indirect_block = (int*) readFromBlock(inod->doubleIndirect);
+  //  int* double_indirect_block = (int*) readFromBlock(inod->doubleIndirect);
 
   int file_blocks = inod->fileSize / getBlockSize();
   int fs = inod->fileSize;
@@ -425,16 +425,14 @@ void CAT(const char* fileName){
   {
     if(file_blocks < NUM_DIRECT_BLOCKS)
     {
-      int blocknum_to_req = inod->direct[i];
-      char* block_buffer = readFromBlock(blocknum_to_req);
-      memcpy(&cat_buffer + (i*getBlockSize()), &block_buffer, getBlockSize());
+      char* block_buffer = readFromBlock(inod->direct[i]);
+      memcpy(cat_buffer + (i*getBlockSize()), block_buffer, getBlockSize());
       delete block_buffer;
     }
     else if(i >= NUM_DIRECT_BLOCKS && i < indirect_max_size)
     {
-      int blocknum_to_req = indirect_block[i - NUM_DIRECT_BLOCKS];
-      char* block_buffer = readFromBlock(blocknum_to_req);
-      memcpy(&cat_buffer + (i*getBlockSize()), &block_buffer, getBlockSize());
+      char* block_buffer = readFromBlock(indirect_block[i - NUM_DIRECT_BLOCKS]);
+      memcpy(cat_buffer + (i*getBlockSize()), block_buffer, getBlockSize());
       delete block_buffer;
     }
     else if(i >= indirect_max_size && i < double_indirect_max_size)
@@ -449,6 +447,7 @@ void CAT(const char* fileName){
   {
     cout << cat_buffer[i];
   }
+  cout << endl;
   pthread_mutex_unlock(&CONSOLE_OUT_LOCK);
 
   delete[] double_indirect_block;
