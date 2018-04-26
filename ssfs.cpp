@@ -811,11 +811,9 @@ process_ops(void* file_arg)
 	return NULL;
 }
 
-char* //SUPER is stored in memory upon startup
-getSUPER()
-{
- return SUPER;
-}
+char* getFREE_MAP(){return FREE_MAP; }
+char* getINODE_MAP(){return INODE_MAP; }
+char* getSUPER(){return SUPER; }
 
 int
 getNumBlocks()
