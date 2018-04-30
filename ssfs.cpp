@@ -390,6 +390,58 @@ void IMPORT(const char* ssfsFile, const char* unixFilename){
   writeToBlock(inodeBlock, (char*) ino);
 }
 
+void fillData(char* data, char c, int start, int num, int i)
+{
+  int startBlock = start/getBlockSize();
+  int endBlock = (start+num)/getBlockSize();
+
+  if(i != startBlock && i != endBlock) for(int j=0;j<getBlockSize();j++)data[j]=c;
+  else if (i==startBlock&&i!=endBlock)for(int j = start%getBlockSize();j<getBlockSize();j++)data[j]=c;
+  else if (i != startBlock && i==endBlock)for(int j=0;j<(start+num)%getBlockSize();j++)data[j]=c;
+  else if (i == startBlock && i==endBlock)for(int j =start%getBlockSize();j<(start+num)%getBlockSize();j++)data[j]=c;
+}
+
+void myWRITE(const char* fileName, char c, int start, int num)
+{
+  int inodeBlock = getInode(fileName);
+  inode* inode = getInodeFromBlockNumber(inodeBlock);
+
+  int startBlock = start/getBlockSize();
+  int endBlock = (start+num)/getBlockSize();
+
+  int* indirect = 0;
+  for(int i = startBlock;i<=endBlock;i++)
+    {
+      if(i<NUM_DIRECT_BLOCKS)
+        {
+          int block = inode->direct[i];
+          if(block == 0) block = (inode->direct[i] = getUnusedBlock());
+          char* data = readFromBlock(block);
+          fillData(data, c, start, num, i);
+
+          writeToBlock(block, data);
+        }
+      else if (i < NUM_DIRECT_BLOCKS + getBlockSize()/4)
+        {
+          if(inode->indirect == 0) inode->indirect = getUnusedBlock();
+          if(indirect == 0) indirect = (int*)readFromBlock(inode->indirect);
+          if(indirect[i-NUM_DIRECT_BLOCKS] == 0) indirect[i-NUM_DIRECT_BLOCKS] = getUnusedBlock();
+
+          char* data = readFromBlock(indirect[i-NUM_DIRECT_BLOCKS]);
+          fillData(data,c,start,num,i);
+
+          writeToBlock(indirect[i-NUM_DIRECT_BLOCKS], data);
+        }
+      else
+        {
+          //lol double indirect
+        }
+    }
+
+  if(indirect)writeToBlock(inode->indirect, (char*)indirect);
+  writeToBlock(inodeBlock, (char*)inode);
+}
+
 /*
 -- SPEC --
 This  command displays  the contents  of  <SSFS file name> on the screen, just  like  the unix  cat command.
