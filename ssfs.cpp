@@ -401,11 +401,11 @@ void fillData(char* data, char c, int start, int num, int i)
   else if (i == startBlock && i==endBlock)for(int j =start%getBlockSize();j<(start+num)%getBlockSize();j++)data[j]=c;
 }
 
-void myWRITE(const char* fileName, char c, int start, int num)
+void WRITE(const char* fileName, char c, int start, int num)
 {
   int inodeBlock = getInode(fileName);
   inode* inode = getInodeFromBlockNumber(inodeBlock);
-  
+
   int startBlock = start/getBlockSize();
   int endBlock = (start+num)/getBlockSize();
 
@@ -569,7 +569,7 @@ Copies &c into fileName from start to (start + num)
   - start    : byte number to start writing at
   - num      : number of copies of c to write
 @return void
-*/
+
 void WRITE(const char* fileName, char c, uint start, uint num)
 {
   int indirect_max_size = NUM_DIRECT_BLOCKS + getBlockSize()/sizeof(int); // # of blocks that can be refferenced by an indirect block
@@ -582,7 +582,7 @@ void WRITE(const char* fileName, char c, uint start, uint num)
   for(int i = start; i < getBlockSize(); i++)
   {
     memcpy(start_block + i, &c, sizeof(char));
-    //Should cover corner case where (start + num) < blocksize so we only write 1 block */
+    //Should cover corner case where (start + num) < blocksize so we only write 1 block 
     if(i == (start + num))
     {
       break;
@@ -673,12 +673,12 @@ void WRITE(const char* fileName, char c, uint start, uint num)
 
       delete[] double_indirect_block;
       delete[] indirect_block;
-      */
+      
     }
   }
   delete inod;
 }
-
+*/
 /*
 -- SPEC --
 This  command should  display <num bytes> of  file  <SSFS file name>, starting  at  byte  <start byte>.
@@ -710,19 +710,19 @@ void READ(const char* fileName, uint start, uint num)
 
   for(int i = 0; i < file_blocks; i++)
   {
-    if(file_blocks < NUM_DIRECT_BLOCKS)
+    if(i < NUM_DIRECT_BLOCKS)
     {
       int blocknum_to_req = inod->direct[i];
       char* block_buffer = readFromBlock(blocknum_to_req);
-      memcpy(&cat_buffer + (i*getBlockSize()), &block_buffer, getBlockSize());
-      delete block_buffer;
+      memcpy(cat_buffer + (i*getBlockSize()), block_buffer, getBlockSize());
+      delete[] block_buffer;
     }
     else if(i >= NUM_DIRECT_BLOCKS && i < indirect_max_size)
     {
       int blocknum_to_req = indirect_block[i - NUM_DIRECT_BLOCKS];
       char* block_buffer = readFromBlock(blocknum_to_req);
-      memcpy(&cat_buffer + (i*getBlockSize()), &block_buffer, getBlockSize());
-      delete block_buffer;
+      memcpy(cat_buffer + (i*getBlockSize()), block_buffer, getBlockSize());
+      delete[] block_buffer;
     }
     else if(i >= indirect_max_size && i < double_indirect_max_size)
     {
@@ -845,8 +845,7 @@ process_ops(void* file_arg)
         ss >> start;
         ss >> num;
 
-        myWRITE(file1.c_str(), c, start, num);
-        //        WRITE(file1.c_str(), c, start, num);
+        WRITE(file1.c_str(), c, start, num);
       }
     else if (command == "READ")
       {
