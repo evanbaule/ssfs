@@ -1,5 +1,5 @@
 CREATE test.txt
 WRITE test.txt a 10 512
 LIST
-WRITE test.txt b 300 511
+WRITE test.txt b 300 200
 SHUTDOWN

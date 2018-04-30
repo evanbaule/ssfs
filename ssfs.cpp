@@ -405,7 +405,7 @@ void myWRITE(const char* fileName, char c, int start, int num)
 {
   int inodeBlock = getInode(fileName);
   inode* inode = getInodeFromBlockNumber(inodeBlock);
-
+  
   int startBlock = start/getBlockSize();
   int endBlock = (start+num)/getBlockSize();
 
@@ -845,7 +845,8 @@ process_ops(void* file_arg)
         ss >> start;
         ss >> num;
 
-        WRITE(file1.c_str(), c, start, num);
+        myWRITE(file1.c_str(), c, start, num);
+        //        WRITE(file1.c_str(), c, start, num);
       }
     else if (command == "READ")
       {
