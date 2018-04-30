@@ -409,6 +409,8 @@ void WRITE(const char* fileName, char c, int start, int num)
   int startBlock = start/getBlockSize();
   int endBlock = (start+num)/getBlockSize();
 
+  inode->fileSize = max(inode->fileSize, start+num);
+
   int* indirect = 0;
   for(int i = startBlock;i<=endBlock;i++)
     {
