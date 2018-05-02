@@ -262,9 +262,10 @@ void IMPORT(const char* ssfsFile, const char* unixFilename){
   uint max_file_size = block_size * (1 + NUM_DIRECT_BLOCKS + (block_size/sizeof(int)) + ((block_size*block_size)/(sizeof(int)*sizeof(int)))); //max number of blocks we can hold in a single file * num of bytes in a block
 
   int fd;
-  if((fd = open(unixFilename, O_RDONLY)) == -1)
+  if((fd = open(unixFilename, O_RDONLY)) < 0)
   {
     cerr << "Error opening file stream from " << unixFilename << endl;
+    return;
   }
 
   /* Gets & checks the total bytes of unixFilename file */
@@ -373,6 +374,9 @@ void WRITE(const char* fileName, char c, int start, int num)
   inode->fileSize = max(inode->fileSize, start+num);
 
   int* indirect = 0;
+  int* doubleIndirect = 0;
+
+  int addrsPerBlock = getBlockSize()/4;
   for(int i = startBlock;i<=endBlock;i++)
     {
       if(i<NUM_DIRECT_BLOCKS)
@@ -397,11 +401,27 @@ void WRITE(const char* fileName, char c, int start, int num)
         }
       else
         {
-          //lol double indirect
+          if(inode->doubleIndirect == 0) inode->doubleIndirect = getUnusedBlock();
+          if(doubleIndirect == 0) doubleIndirect = (int*) readFromBlock(inode->doubleIndirect);
+
+          int doubIndex = (i-NUM_DIRECT_BLOCKS-addrsPerBlock)/addrsPerBlock;
+          int doubIndexIntoBlock = (i-NUM_DIRECT_BLOCKS-addrsPerBlock)%addrsPerBlock;
+
+          if(doubleIndirect[doubIndex] == 0) doubleIndirect[doubIndex] = getUnusedBlock();
+          int* currentBlock = (int*)readFromBlock(doubleIndirect[doubIndex]);
+          if(currentBlock[doubIndexIntoBlock] == 0) currentBlock[doubIndexIntoBlock] = getUnusedBlock();
+
+          char* data = readFromBlock(currentBlock[doubIndexIntoBlock]);
+          fillData(data, c, start, num, i);
+
+          writeToBlock(currentBlock[doubIndexIntoBlock], data);
+          writeToBlock(doubleIndirect[doubIndex], (char*)currentBlock);
         }
     }
 
   if(indirect)writeToBlock(inode->indirect, (char*)indirect);
+  if(doubleIndirect) writeToBlock(inode->doubleIndirect, (char*)doubleIndirect);
+
   writeToBlock(inodeBlock, (char*)inode);
 }
 
@@ -430,22 +450,24 @@ void CAT(const char* fileName){
   //  int* double_indirect_block = (int*) readFromBlock(inod->doubleIndirect);
 
   int file_blocks = (int) ceil((double)inod->fileSize / getBlockSize());
+  cout << "F_B: " << file_blocks << endl;
   int fs = inod->fileSize;
-  char* cat_buffer = new char[fs](); //will read blocks into this buffer
-
+  char* cat_buffer = new char[file_blocks * getBlockSize()](); //will read blocks into this buffer
+    
   for(int i = 0; i < file_blocks; i++)
   {
+    printf("I:\t%d\n", i);
     if(i < NUM_DIRECT_BLOCKS)
     {
       char* block_buffer = readFromBlock(inod->direct[i]);
       memcpy(cat_buffer + (i*getBlockSize()), block_buffer, getBlockSize());
-      delete block_buffer;
+      delete[] block_buffer;
     }
     else if(i >= NUM_DIRECT_BLOCKS && i < indirect_max_size)
     {
       char* block_buffer = readFromBlock(indirect_block[i - NUM_DIRECT_BLOCKS]);
       memcpy(cat_buffer + (i*getBlockSize()), block_buffer, getBlockSize());
-      delete block_buffer;
+      delete[] block_buffer;
     }
     else if(i >= indirect_max_size && i < double_indirect_max_size)
     {

@@ -1,8 +1,45 @@
 CREATE test.txt
 WRITE test.txt a 10 512
-WRITE test.txt b 10 30
-WRITE test.txt X 127 1
+CAT test.txt
 LIST
+LIST
+LIST
+WRITE test.txt b 300 200
+LIST
+CREATE test2.txt
+WRITE test2.txt f 12 12
+CAT test.txt
+CAT test2.txt
+DELETE test.txt
+LIST
+IMPORT scheduler.hpp scheduler.hpp
+LIST
+CAT scheduler.hpp
+WRITE scheduler.hpp X 30 200
+CAT scheduler.hpp
+LIST
+LIST
+>>>>>>> 146bacc7720d9c0251e066fa1cba3c6c534753f4
+LIST
+<<<<<<< HEAD
 READ test.txt 10 25
 READ test.txt 10 300
+||||||| merged common ancestors
+WRITE test.txt b 300 200
+=======
+WRITE test.txt b 300 200
+LIST
+CREATE test2.txt
+WRITE test2.txt f 12 12
+CAT test.txt
+CAT test2.txt
+DELETE test.txt
+LIST
+IMPORT scheduler.hpp scheduler.hpp
+LIST
+CAT scheduler.hpp
+WRITE scheduler.hpp X 30 200
+CAT scheduler.hpp
+LIST
+>>>>>>> 146bacc7720d9c0251e066fa1cba3c6c534753f4
 SHUTDOWN
