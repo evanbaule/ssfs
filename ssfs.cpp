@@ -538,32 +538,47 @@ void READ(const char* fileName, uint start, uint num)
   int double_indirect_max_size = indirect_max_size + (getBlockSize()/sizeof(int)) * (getBlockSize()/sizeof(int));
 
   int ino = getInode(fileName);
-  if(ino == -1) return;
+  if(ino == -1)
+  {
+    printf("File doesnt exist\n");
+    return;
+  }
 
   inode* inod = getInodeFromBlockNumber(ino);
-
   int* indirect_block = (int*) readFromBlock(inod->indirect);
-  int* double_indirect_block = (int*) readFromBlock(inod->doubleIndirect);
+  //int* double_indirect_block = (int*) readFromBlock(inod->doubleIndirect);
 
-  int file_blocks = inod->fileSize / getBlockSize();
   int fs = inod->fileSize;
-  char* cat_buffer = new char[fs](); //will reach blocks into this buffer
 
-  for(int i = 0; i < file_blocks; i++)
+  cout << "FS " << fs << endl;
+  cout << "NM " << num << endl;
+  // if(fs < (num - start))
+  // { 
+  //   //this might be too fancy and we prob dont care about this case
+  //   num = (fs - start);
+  //   printf("Looks like you tried to read more bytes than the file contained. Obviously you didn't mean to do that, so we will let it slide.");
+  // }
+
+  int start_block_num = (int) floor(start/getBlockSize());
+  int end_block_num = (int) floor((start+num)/getBlockSize());
+
+  int buffer_blocks = (1 + end_block_num - start_block_num); // I swear there's a good reason for this seperation
+  int rbuffsize = buffer_blocks * getBlockSize();
+  char* read_buffer = new char[rbuffsize]();
+
+  for(int i = start_block_num; i < buffer_blocks; i++)
   {
     if(i < NUM_DIRECT_BLOCKS)
     {
-      int blocknum_to_req = inod->direct[i];
-      char* block_buffer = readFromBlock(blocknum_to_req);
-      memcpy(cat_buffer + (i*getBlockSize()), block_buffer, getBlockSize());
-      delete[] block_buffer;
+      char* block_buffer = readFromBlock(inod->direct[i]);
+      memcpy(read_buffer + (i*getBlockSize()), block_buffer, getBlockSize());
+      delete block_buffer;
     }
     else if(i >= NUM_DIRECT_BLOCKS && i < indirect_max_size)
     {
-      int blocknum_to_req = indirect_block[i - NUM_DIRECT_BLOCKS];
-      char* block_buffer = readFromBlock(blocknum_to_req);
-      memcpy(cat_buffer + (i*getBlockSize()), block_buffer, getBlockSize());
-      delete[] block_buffer;
+      char* block_buffer = readFromBlock(indirect_block[i - NUM_DIRECT_BLOCKS]);
+      memcpy(read_buffer + (i*getBlockSize()), block_buffer, getBlockSize());
+      delete block_buffer;
     }
     else if(i >= indirect_max_size && i < double_indirect_max_size)
     {
@@ -573,13 +588,14 @@ void READ(const char* fileName, uint start, uint num)
 
   //mutex to console to ensure contig. output
   pthread_mutex_lock(&CONSOLE_OUT_LOCK);
-  for(int i = 0; i < sizeof(cat_buffer); i++)
+  for(int i = 0; i < fs; i++)
   {
-    cout << cat_buffer[i];
+    printf("%c", read_buffer[i]);
   }
+  printf("\n");
   pthread_mutex_unlock(&CONSOLE_OUT_LOCK);
 
-  delete[] double_indirect_block;
+  //  delete[] double_indirect_block;
   delete[] indirect_block;
   delete[] inod;
 }
@@ -763,39 +779,6 @@ getUserDataStart()
 {
   return ((int*) SUPER)[7];
 }
-
-/* DEPRECATED
-char*
-getDisk()
-{
-  return DISK;
-}
-
-int getNumBlocks()
-{
-  return ((int*) DISK)[0];
-}
-
-int getBlockSize()
-{
-  return ((int*) DISK)[1];
-}
-//Returns the block number where the free map begins
-int getFreeMapStart()
-{
-  return ((int*) DISK)[2];
-}
-//Returns the block number where the inode map begins
-int getInodeMapStart()
-{
-  return ((int*) DISK)[3];
-}
-//Returns the block number where we begin to store inodes and user data blocks
-int getDataStart()
-{
-  return ((int*) DISK)[4];
-}
-*/
 
 int main(int argc, char const *argv[])
 {
