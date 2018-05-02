@@ -610,7 +610,7 @@ void READ(const char* fileName, uint start, uint num)
 
   //mutex to console to ensure contig. output
   pthread_mutex_lock(&CONSOLE_OUT_LOCK);
-  for(int i = 0; i < fs; i++)
+  for(int i = 0; i < (start + num); i++)
   {
     printf("%c", read_buffer[i]);
   }
