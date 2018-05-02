@@ -370,10 +370,13 @@ void WRITE(const char* fileName, char c, int start, int num)
 
   int startBlock = start/getBlockSize();
   int endBlock = (start+num)/getBlockSize();
-  
+
   inode->fileSize = max(inode->fileSize, start+num);
-  
+
   int* indirect = 0;
+  int* doubleIndirect = 0;
+
+  int addrsPerBlock = getBlockSize()/4;
   for(int i = startBlock;i<=endBlock;i++)
     {
       if(i<NUM_DIRECT_BLOCKS)
@@ -398,11 +401,27 @@ void WRITE(const char* fileName, char c, int start, int num)
         }
       else
         {
-          //lol double indirect
+          if(inode->doubleIndirect == 0) inode->doubleIndirect = getUnusedBlock();
+          if(doubleIndirect == 0) doubleIndirect = (int*) readFromBlock(inode->doubleIndirect);
+
+          int doubIndex = (i-NUM_DIRECT_BLOCKS-addrsPerBlock)/addrsPerBlock;
+          int doubIndexIntoBlock = (i-NUM_DIRECT_BLOCKS-addrsPerBlock)%addrsPerBlock;
+
+          if(doubleIndirect[doubIndex] == 0) doubleIndirect[doubIndex] = getUnusedBlock();
+          int* currentBlock = (int*)readFromBlock(doubleIndirect[doubIndex]);
+          if(currentBlock[doubIndexIntoBlock] == 0) currentBlock[doubIndexIntoBlock] = getUnusedBlock();
+
+          char* data = readFromBlock(currentBlock[doubIndexIntoBlock]);
+          fillData(data, c, start, num, i);
+
+          writeToBlock(currentBlock[doubIndexIntoBlock], data);
+          writeToBlock(doubleIndirect[doubIndex], (char*)currentBlock);
         }
     }
 
   if(indirect)writeToBlock(inode->indirect, (char*)indirect);
+  if(doubleIndirect) writeToBlock(inode->doubleIndirect, (char*)doubleIndirect);
+
   writeToBlock(inodeBlock, (char*)inode);
 }
 
