@@ -1,5 +1,21 @@
 CREATE test.txt
 WRITE test.txt a 10 512
+CAT test.txt
+LIST
+LIST
 LIST
 WRITE test.txt b 300 200
+LIST
+CREATE test2.txt
+WRITE test2.txt f 12 12
+CAT test.txt
+CAT test2.txt
+DELETE test.txt
+LIST
+IMPORT scheduler.hpp scheduler.hpp
+LIST
+CAT scheduler.hpp
+WRITE scheduler.hpp X 30 200
+CAT scheduler.hpp
+LIST
 SHUTDOWN
