@@ -450,28 +450,28 @@ void CAT(const char* fileName){
   //  int* double_indirect_block = (int*) readFromBlock(inod->doubleIndirect);
 
   int file_blocks = (int) ceil((double)inod->fileSize / getBlockSize());
-  cout << "F_B: " << file_blocks << endl;
+  //cout << "F_B: " << file_blocks << endl;
   int fs = inod->fileSize;
   char* cat_buffer = new char[file_blocks * getBlockSize()](); //will read blocks into this buffer
     
   for(int i = 0; i < file_blocks; i++)
   {
-    printf("I:\t%d\n", i);
+   // printf("I:\t%d\n", i);
     if(i < NUM_DIRECT_BLOCKS)
     {
       char* block_buffer = readFromBlock(inod->direct[i]);
       memcpy(cat_buffer + (i*getBlockSize()), block_buffer, getBlockSize());
       delete[] block_buffer;
     }
-    else if(i >= NUM_DIRECT_BLOCKS && i < indirect_max_size)
+    else if(i < indirect_max_size)
     {
       char* block_buffer = readFromBlock(indirect_block[i - NUM_DIRECT_BLOCKS]);
       memcpy(cat_buffer + (i*getBlockSize()), block_buffer, getBlockSize());
       delete[] block_buffer;
     }
-    else if(i >= indirect_max_size && i < double_indirect_max_size)
+    else
     {
-      cout << "Fuck double indirect rn" << endl;
+      printf("double indirect read in CAT\n");
     }
   }
 
@@ -572,45 +572,48 @@ void READ(const char* fileName, uint start, uint num)
 
   int fs = inod->fileSize;
 
-  cout << "FS " << fs << endl;
-  cout << "NM " << num << endl;
-  // if(fs < (num - start))
-  // { 
-  //   //this might be too fancy and we prob dont care about this case
-  //   num = (fs - start);
-  //   printf("Looks like you tried to read more bytes than the file contained. Obviously you didn't mean to do that, so we will let it slide.");
-  // }
+  int start_block_num = start/getBlockSize();
+  int start_block_index = start % getBlockSize();
 
-  int start_block_num = (int) floor(start/getBlockSize());
-  int end_block_num = (int) floor((start+num)/getBlockSize());
+  int end_block_num = (start+num)/getBlockSize();
+  int end_block_index = (start + num)/getBlockSize();
 
-  int buffer_blocks = (1 + end_block_num - start_block_num); // I swear there's a good reason for this seperation
-  int rbuffsize = buffer_blocks * getBlockSize();
-  char* read_buffer = new char[rbuffsize]();
+  int buffer_blocks = 1 + (end_block_num - start_block_num); //I swear there's a good reason for this seperation
+  char* read_buffer = new char[buffer_blocks * getBlockSize()]();
+    
+  cout << "Start block: " << start_block_num << endl;
+  cout << "End block: " << end_block_num << endl;
 
-  for(int i = start_block_num; i < buffer_blocks; i++)
+  int b = 0;
+  for(int i = start_block_num; i <= end_block_num; i++)
   {
+    //    int b = i / getBlockSize();
+    cout << "i: " << i << endl;
+    cout << "b: " << b << endl;
     if(i < NUM_DIRECT_BLOCKS)
     {
       char* block_buffer = readFromBlock(inod->direct[i]);
-      memcpy(read_buffer + (i*getBlockSize()), block_buffer, getBlockSize());
-      delete block_buffer;
+      memcpy(read_buffer + (b*getBlockSize()), block_buffer, getBlockSize());
+      delete[] block_buffer;
     }
-    else if(i >= NUM_DIRECT_BLOCKS && i < indirect_max_size)
+    else if(i < indirect_max_size)
     {
       char* block_buffer = readFromBlock(indirect_block[i - NUM_DIRECT_BLOCKS]);
-      memcpy(read_buffer + (i*getBlockSize()), block_buffer, getBlockSize());
-      delete block_buffer;
+      memcpy(read_buffer + (b*getBlockSize()), block_buffer, getBlockSize());
+      delete[] block_buffer;
     }
-    else if(i >= indirect_max_size && i < double_indirect_max_size)
+    else
     {
-      cout << "Fuck double indirect rn" << endl;
+      cout << "Double indirect is for freaks" << endl;
     }
+    b++;
   }
 
   //mutex to console to ensure contig. output
   pthread_mutex_lock(&CONSOLE_OUT_LOCK);
-  for(int i = 0; i < (start + num); i++)
+  cout << start % getBlockSize() << endl;
+  cout << (start + num) % getBlockSize() << endl;
+  for(int i = start%getBlockSize(); i < (start + num)%getBlockSize(); i++)
   {
     printf("%c", read_buffer[i]);
   }

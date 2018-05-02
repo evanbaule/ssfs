@@ -1,4 +1,5 @@
-LIST
-WRITE test.txt Z 5000 10000
-CAT test.txt
+CREATE test.txt
+WRITE test.txt Z 0 1000
+WRITE test.txt 3 500 1
+READ test.txt 499 3
 SHUTDOWN
