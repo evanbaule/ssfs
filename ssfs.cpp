@@ -39,6 +39,7 @@ int getUnusedBlock()
     if(FREE_MAP[i] == 0)
       {
         FREE_MAP[i] = 1;
+        writeToBlock(i, new char[getBlockSize()]());
         return i; //returns the block # of the unassigned block
       }
   }
@@ -251,6 +252,7 @@ void CREATE(const char* filename)
   {
     cerr << "Invalid filename entered into CREATE argument " << endl;
   }
+  if(getInode(filename) != -1) return;
   int inod = getEmptyInode();
   if(inod != -1)
     {
@@ -357,12 +359,13 @@ void IMPORT(const char* ssfsFile, const char* unixFilename){
           if(doubInt[doubIndex] == 0) doubInt[doubIndex] = getUnusedBlock();
 
           indirectBlock = (int*) readFromBlock(doubInt[doubIndex]);
-          
+
           indirectBlock[doubIndexIntoBlock] = getUnusedBlock();
 
           writeToBlock(indirectBlock[doubIndexIntoBlock], read_buffer);
 
           writeToBlock(doubInt[doubIndex],  (char*) indirectBlock);
+
         }
     }
 
@@ -471,49 +474,6 @@ void CAT(const char* fileName){
   inode* inod = getInodeFromBlockNumber(ino);
 
   READ(fileName, 0, inod->fileSize);
-  /*
-  int* indirect_block = (int*) readFromBlock(inod->indirect);
-  //  int* double_indirect_block = (int*) readFromBlock(inod->doubleIndirect);
-
-  int file_blocks = (int) ceil((double)inod->fileSize / getBlockSize());
-  //cout << "F_B: " << file_blocks << endl;
-  int fs = inod->fileSize;
-  char* cat_buffer = new char[file_blocks * getBlockSize()](); //will read blocks into this buffer
-    
-  for(int i = 0; i < file_blocks; i++)
-  {
-   // printf("I:\t%d\n", i);
-    if(i < NUM_DIRECT_BLOCKS)
-    {
-      char* block_buffer = readFromBlock(inod->direct[i]);
-      memcpy(cat_buffer + (i*getBlockSize()), block_buffer, getBlockSize());
-      delete[] block_buffer;
-    }
-    else if(i < indirect_max_size)
-    {
-      char* block_buffer = readFromBlock(indirect_block[i - NUM_DIRECT_BLOCKS]);
-      memcpy(cat_buffer + (i*getBlockSize()), block_buffer, getBlockSize());
-      delete[] block_buffer;
-    }
-    else
-    {
-      printf("double indirect read in CAT\n");
-    }
-  }
-
-  //mutex to console to ensure contig. output
-  pthread_mutex_lock(&CONSOLE_OUT_LOCK);
-  for(int i = 0; i < fs; i++)
-  {
-    printf("%c", cat_buffer[i]);
-  }
-  printf("\n");
-  pthread_mutex_unlock(&CONSOLE_OUT_LOCK);
-
-  //  delete[] double_indirect_block;
-  delete[] indirect_block;
-  delete[] inod;
-  */
 }
 
 /*
@@ -540,6 +500,7 @@ void DELETE(const char* fileName)
     }
 
   int* indirect_block = (int*) readFromBlock(inod->indirect);
+  FREE_MAP[inod->indirect] = 0;
   if(inod->indirect)
   for(int i =0;i<getBlockSize()/4;i++)
     {
@@ -549,6 +510,7 @@ void DELETE(const char* fileName)
   delete[] (char*) indirect_block;
 
   int* dindirect_block = (int*) readFromBlock(inod->doubleIndirect);
+  cout << "dd block " << inod->doubleIndirect << endl;
   if(inod->doubleIndirect)
   for(int i =0;i<getBlockSize()/4;i++)
     {
@@ -557,11 +519,13 @@ void DELETE(const char* fileName)
         {
           FREE_MAP[indir_block[j]] = 0;
         }
-      delete[] (char*) indir_block;
+      FREE_MAP[dindirect_block[i]] = 0;
+      delete[]  indir_block;
     }
-  delete[] (char*) dindirect_block;
+  FREE_MAP[inod->doubleIndirect] = 0;
+  delete[]  dindirect_block;
 
-  delete[] (char*) inod;
+  delete[]  inod;
 
   char* asdf = new char[getBlockSize()]();
   writeToBlock(ino, asdf);
@@ -880,7 +844,7 @@ int main(int argc, char const *argv[])
       memcpy(FREE_MAP+i*getBlockSize(), readFromBlock(getFreeMapStart()+i), getBlockSize());
 
     for(int i =0;i<256/getBlockSize();i++)
-      memcpy(INODE_MAP+i*getBlockSize(), readFromBlock(getInodesStart()+i), getBlockSize());
+      memcpy(INODE_MAP+i*getBlockSize(), readFromBlock(getInodeMapStart()+i), getBlockSize());
 
     for(int i = 2; i < argc;i++)
       {
