@@ -1,2 +1,2 @@
-READ sch 0 10000
+IMPORT penises.txt penises.txt
 SHUTDOWN 
