@@ -14,6 +14,8 @@ pthread_mutex_t CONSOLE_OUT_LOCK = PTHREAD_MUTEX_INITIALIZER;
 
 pthread_mutex_t REQUESTS_LOCK = PTHREAD_MUTEX_INITIALIZER;
 
+pthread_mutex_t MAP_LOCK = PTHREAD_MUTEX_INITIALIZER;
+
 /* Workload queue that will be serviced by the disk scheduler*/
 queue<disk_io_request*>* requests = new queue<disk_io_request*>;
 
@@ -35,6 +37,7 @@ int getUnusedBlock()
 {
   for(int i = getUserDataStart(); i < getNumBlocks(); i++)
   {
+  pthread_mutex_lock(&MAP_LOCK);
     // Maybe need to do i % blockSize() here or something to index into individual bytes
     if(FREE_MAP[i] == 0)
       {
@@ -43,6 +46,7 @@ int getUnusedBlock()
         return i; //returns the block # of the unassigned block
       }
   }
+  pthread_mutex_unlock(&MAP_LOCK);
   return -1;
   /* DEPRECATED 
   for(int i=257;i<getNumBlocks();i++)
@@ -68,6 +72,7 @@ void addRequest(disk_io_request* req)
 int getEmptyInode()
 {
   //this should dramatically speed up empty inode allocation
+  pthread_mutex_lock(&MAP_LOCK);
   for(int i = 0; i < MAX_INODES; i++)
   {
     if(INODE_MAP[i] == 0)
@@ -76,6 +81,7 @@ int getEmptyInode()
       return i+getInodesStart();
     }
   }
+  pthread_mutex_unlock(&MAP_LOCK);
   return -1; // DISK IS FULL
 }
 
@@ -88,6 +94,7 @@ int getInode(const char* file)
 {
   bool found=0;
   int i;
+  pthread_mutex_lock(&MAP_LOCK);
   for(i=0;i<MAX_INODES && !found;i++)
     {
       if(!INODE_MAP[i])
@@ -100,6 +107,7 @@ int getInode(const char* file)
         found = 1;
       delete[](data);
     }
+  pthread_mutex_unlock(&MAP_LOCK);
   if(found) return i-1+getInodesStart();
   else return -1;
 }
