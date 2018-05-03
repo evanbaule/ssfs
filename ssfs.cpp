@@ -127,15 +127,18 @@ void writeToBlock(int block, char* data)
   req->data = data;
   req->block_number = block;
 
-  pthread_mutex_init( &req->lock, NULL);
-  pthread_cond_init( &req->waitFor, NULL);
+  req->lock = new pthread_mutex_t;
+  req->waitFor = new pthread_cond_t;
+
+  pthread_mutex_init( req->lock, NULL);
+  pthread_cond_init( req->waitFor, NULL);
 
   addRequest(req);
 
-  pthread_mutex_lock(&req->lock);
+  pthread_mutex_lock(req->lock);
   while(!req->done)
-    pthread_cond_wait(&req->waitFor, &req->lock);
-  pthread_mutex_unlock(&req->lock);
+    pthread_cond_wait(req->waitFor, req->lock);
+  pthread_mutex_unlock(req->lock);
 
 }
 
@@ -154,15 +157,18 @@ char* readFromBlock(int block)
   req->block_number = block;
   req->done = 0;
 
-  pthread_mutex_init( &req->lock, NULL);
-  pthread_cond_init( &req->waitFor, NULL);
+  req->lock = new pthread_mutex_t;
+  req->waitFor = new pthread_cond_t;
+
+  pthread_mutex_init( req->lock, NULL);
+  pthread_cond_init( req->waitFor, NULL);
 
   addRequest(req);
 
-  pthread_mutex_lock(&req->lock);
+  pthread_mutex_lock(req->lock);
   while(!req->done)
-    pthread_cond_wait(&req->waitFor, &req->lock);
-  pthread_mutex_unlock(&req->lock);
+    pthread_cond_wait(req->waitFor, req->lock);
+  pthread_mutex_unlock(req->lock);
 
   return req->data;
 }
@@ -610,6 +616,8 @@ void READ(const char* fileName, int start, int num)
 
   int addrsPerBlock = getBlockSize()/4;
   int b = 0;
+
+  int prevDoubIndex = 0;
   for(int i = start_block_num; i <= end_block_num; i++)
   {
     //    int b = i / getBlockSize();
@@ -633,12 +641,10 @@ void READ(const char* fileName, int start, int num)
       int doubIndexIntoBlock = (i-NUM_DIRECT_BLOCKS-addrsPerBlock)%addrsPerBlock;
 
       int* currentBlock = (int*)readFromBlock(double_indirect_block[doubIndex]);
+
       char* block_buffer = readFromBlock(currentBlock[doubIndexIntoBlock]);
 
       memcpy(read_buffer + (b*getBlockSize()), block_buffer, getBlockSize());
-
-      delete[] block_buffer;
-      delete[] currentBlock;
     }
     b++;
   }

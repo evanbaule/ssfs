@@ -1,3 +1,2 @@
-IMPORT ssfs.cpp ssfs.cpp
-CAT ssfs.cpp
+CAT ssfs_mkdsk
 SHUTDOWN
