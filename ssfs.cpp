@@ -523,8 +523,8 @@ void READ(const char* fileName, int start, int num)
       delete[] block_buffer;
     }
     else if(i < indirect_max_size)
-    {
-      char* block_buffer = readFromBlock(indirect_block[i - NUM_DIRECT_BLOCKS]);
+      {
+        char* block_buffer = readFromBlock(indirect_block[i - NUM_DIRECT_BLOCKS]);
       memcpy(read_buffer + (b*getBlockSize()), block_buffer, getBlockSize());
       delete[] block_buffer;
     }
@@ -534,15 +534,14 @@ void READ(const char* fileName, int start, int num)
       int doubIndexIntoBlock = (i-NUM_DIRECT_BLOCKS-addrsPerBlock)%addrsPerBlock;
 
       int* currentBlock = (int*)readFromBlock(double_indirect_block[doubIndex]);
-
       char* block_buffer = readFromBlock(currentBlock[doubIndexIntoBlock]);
-
       memcpy(read_buffer + (b*getBlockSize()), block_buffer, getBlockSize());
-
       delete[] block_buffer;
     }
     b++;
   }
+
+  cout << "got em" << endl;
 
   //mutex to console to ensure contig. output
   pthread_mutex_lock(&CONSOLE_OUT_LOCK);
