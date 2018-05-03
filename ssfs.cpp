@@ -84,7 +84,7 @@ int getEmptyInode()
     }
   }
  pthread_mutex_unlock(&IMAP_LOCK);
- cout << "yeah def autistic" << endl;
+ cerr << "Disk cannot fit any more files" << endl;
  return -1; // DISK IS FULL
 }
 
@@ -195,7 +195,7 @@ void CREATE(const char* filename)
   {
     cerr << "Invalid filename entered into CREATE argument " << endl;
   }
-  if(getInode(filename) != -1) return;
+  //  if(getInode(filename) != -1) return;
   int inod = getEmptyInode();
   if(inod != -1)
     {
@@ -327,10 +327,18 @@ void fillData(char* data, char c, int start, int num, int i)
 void WRITE(const char* fileName, char c, int start, int num)
 {
   int inodeBlock = getInode(fileName);
+
+  if(inodeBlock == -1) CREATE(fileName);
+
+  inodeBlock = getInode(fileName);
+
+  if(inodeBlock == -1) return;
+
   inode* inode = getInodeFromBlockNumber(inodeBlock);
 
   int startBlock = start/getBlockSize();
   int endBlock = (start+num)/getBlockSize();
+
 
   inode->fileSize = max(inode->fileSize, start+num);
 
@@ -362,7 +370,7 @@ void WRITE(const char* fileName, char c, int start, int num)
 
           writeToBlock(indirect[i-NUM_DIRECT_BLOCKS], data);
         }
-      else
+      else if ( i < 12+addrsPerBlock+addrsPerBlock*addrsPerBlock)
         {
           if(inode->doubleIndirect == 0) inode->doubleIndirect = getUnusedBlock();
           if(doubleIndirect == 0) doubleIndirect = (int*) readFromBlock(inode->doubleIndirect);
@@ -379,6 +387,12 @@ void WRITE(const char* fileName, char c, int start, int num)
 
           writeToBlock(currentBlock[doubIndexIntoBlock], data);
           writeToBlock(doubleIndirect[doubIndex], (char*)currentBlock);
+        }
+      else
+        {
+          cerr << "Attempted to write past max file size, truncated" << endl;
+          inode->fileSize = (12+addrsPerBlock+addrsPerBlock*addrsPerBlock)*getBlockSize();
+          break;
         }
     }
 

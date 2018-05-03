@@ -1,4 +1,6 @@
-CREATE test2.txt test2.txt
-WRITE test2.txt W 0 200
-CAT test2.txt
+WRITE tester.txt b 0 1367068184
+WRITE tester1.txt b 0 1367068184
+WRITE tester2.txt b 0 1367068184
 LIST
+CAT tester.txt
+SHUTDOWN
