@@ -139,6 +139,7 @@ void writeToBlock(int block, char* data)
   req->op = io_WRITE;
   req->data = data;
   req->block_number = block;
+  req->done = 0;
 
   pthread_mutex_init( &req->lock, NULL);
   pthread_cond_init( &req->waitFor, NULL);
@@ -397,7 +398,6 @@ Issues read requests for blocks of fileName and pushes them into a buffer, then 
 @return void
 */
 void CAT(const char* fileName){
-
   int indirect_max_size = NUM_DIRECT_BLOCKS + getBlockSize()/sizeof(int); // # of blocks that can be refferenced by an indirect block
   int double_indirect_max_size = indirect_max_size + (getBlockSize()/sizeof(int)) * (getBlockSize()/sizeof(int));
 
@@ -537,6 +537,7 @@ void READ(const char* fileName, int start, int num)
             int* indir_block = (int*) readFromBlock(dindirect_block[i]);
             for(int j=0;j<getBlockSize()/4;j++)
               {
+                if(!indir_block[j]) continue;
                 char* block_buffer = readFromBlock(indir_block[j]);
                 memcpy(read_buffer + (b*getBlockSize()), block_buffer, getBlockSize());
                 delete[] block_buffer;
@@ -563,7 +564,7 @@ void READ(const char* fileName, int start, int num)
   printf("\nPrinted %d characters\n",x);
   pthread_mutex_unlock(&CONSOLE_OUT_LOCK);
 
-  if(indirect_block)
+  if(inod->indirect)
     delete[] indirect_block;
   delete[] inod;
 }
