@@ -23,7 +23,7 @@ void* SCH_run(void* vec)
         pthread_mutex_unlock(&lock);
         break;
       }
-      if(requests->size()==0)
+      if(requests->empty())
         {
           pthread_mutex_unlock(&lock);
           continue;
@@ -31,6 +31,8 @@ void* SCH_run(void* vec)
       disk_io_request* req = requests->front();
       requests->pop();
       pthread_mutex_unlock(&lock);
+
+      if(!req) continue;
 
       if(req->op == io_READ)
         {
