@@ -497,7 +497,7 @@ void READ(const char* fileName, int start, int num)
 
   inode* inod = getInodeFromBlockNumber(ino);
   int* indirect_block = (int*) readFromBlock(inod->indirect);
-  int* double_indirect_block = (int*) readFromBlock(inod->doubleIndirect);
+  int* doubleIndirect = 0;
 
   int fs = inod->fileSize;
 
@@ -517,31 +517,38 @@ void READ(const char* fileName, int start, int num)
   for(int i = start_block_num; i <= end_block_num; i++)
   {
     if(i < NUM_DIRECT_BLOCKS)
-    {
-      char* block_buffer = readFromBlock(inod->direct[i]);
-      memcpy(read_buffer + (b*getBlockSize()), block_buffer, getBlockSize());
-      delete[] block_buffer;
-    }
+      {
+        char* block_buffer = readFromBlock(inod->direct[i]);
+        memcpy(read_buffer + (b*getBlockSize()), block_buffer, getBlockSize());
+        delete[] block_buffer;
+      }
     else if(i < indirect_max_size)
       {
         char* block_buffer = readFromBlock(indirect_block[i - NUM_DIRECT_BLOCKS]);
-      memcpy(read_buffer + (b*getBlockSize()), block_buffer, getBlockSize());
-      delete[] block_buffer;
-    }
+        memcpy(read_buffer + (b*getBlockSize()), block_buffer, getBlockSize());
+        delete[] block_buffer;
+      }
     else
-    {
-      int doubIndex = (i-NUM_DIRECT_BLOCKS-addrsPerBlock)/addrsPerBlock;
-      int doubIndexIntoBlock = (i-NUM_DIRECT_BLOCKS-addrsPerBlock)%addrsPerBlock;
-
-      int* currentBlock = (int*)readFromBlock(double_indirect_block[doubIndex]);
-      char* block_buffer = readFromBlock(currentBlock[doubIndexIntoBlock]);
-      memcpy(read_buffer + (b*getBlockSize()), block_buffer, getBlockSize());
-      delete[] block_buffer;
-    }
+      {
+        int* dindirect_block = (int*) readFromBlock(inod->doubleIndirect);
+        for(int i =0;i<getBlockSize()/4;i++)
+          {
+            if(!dindirect_block[i])continue;
+            int* indir_block = (int*) readFromBlock(dindirect_block[i]);
+            for(int j=0;j<getBlockSize()/4;j++)
+              {
+                char* block_buffer = readFromBlock(indir_block[j]);
+                memcpy(read_buffer + (b*getBlockSize()), block_buffer, getBlockSize());
+                delete[] block_buffer;
+                b++;
+              }
+            delete[]  indir_block;
+          }
+        delete[]  dindirect_block;
+        break;
+      }
     b++;
   }
-
-  cout << "got em" << endl;
 
   //mutex to console to ensure contig. output
   pthread_mutex_lock(&CONSOLE_OUT_LOCK);
@@ -556,8 +563,8 @@ void READ(const char* fileName, int start, int num)
   printf("\nPrinted %d characters\n",x);
   pthread_mutex_unlock(&CONSOLE_OUT_LOCK);
 
-  delete[] double_indirect_block;
-  delete[] indirect_block;
+  if(indirect_block)
+    delete[] indirect_block;
   delete[] inod;
 }
 

@@ -50,7 +50,7 @@ void* SCH_run(void* vec)
           pthread_cond_signal(&req->waitFor);
           pthread_mutex_unlock(&req->lock);
           vecs.push_back(req->data);
-          if(vecs.size() % 5 == 0)
+          if(vecs.size() % 50 == 0)
             {
               delete[] vecs.front();
               vecs.erase(vecs.begin());

@@ -1,2 +1,2 @@
-IMPORT penises.txt penises.txt
+CAT penises.txt
 SHUTDOWN 
