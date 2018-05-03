@@ -15,9 +15,16 @@ void* SCH_run(void* vec)
 
   while(1)
     {
-      if(isShutdown() && requests->size()==0) break;
-      if(requests->size()==0)continue;
       pthread_mutex_lock(&lock);
+      if(isShutdown() && requests->size()==0){
+        pthread_mutex_unlock(&lock);
+        break;
+      }
+      if(requests->size()==0)
+        {
+          pthread_mutex_unlock(&lock);
+          continue;
+        }
       disk_io_request* req = requests->front();
       requests->pop();
       pthread_mutex_unlock(&lock);
@@ -33,10 +40,15 @@ void* SCH_run(void* vec)
         }
       else if (req->op == io_WRITE)
         {
+          pthread_mutex_lock(&req->lock);
           lseek(fd, req->block_number*getBlockSize(), SEEK_SET);
           write(fd, req->data, getBlockSize());
           delete[] req->data;
+          req->done = 1;
+          pthread_cond_signal(&req->waitFor);
+          pthread_mutex_unlock(&req->lock);
         }
+      delete req;
     }
 
   //Writeback byte maps

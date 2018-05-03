@@ -1,5 +1,3 @@
-CREATE test.txt
-WRITE test.txt Z 0 1000
-WRITE test.txt 3 500 1
-READ test.txt 499 3
+IMPORT ssfs.cpp ssfs.cpp
+CAT ssfs.cpp
 SHUTDOWN

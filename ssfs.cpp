@@ -126,7 +126,17 @@ void writeToBlock(int block, char* data)
   req->op = io_WRITE;
   req->data = data;
   req->block_number = block;
+
+  pthread_mutex_init( &req->lock, NULL);
+  pthread_cond_init( &req->waitFor, NULL);
+
   addRequest(req);
+
+  pthread_mutex_lock(&req->lock);
+  while(!req->done)
+    pthread_cond_wait(&req->waitFor, &req->lock);
+  pthread_mutex_unlock(&req->lock);
+
 }
 
 /*
@@ -139,6 +149,7 @@ char* readFromBlock(int block)
 {
   disk_io_request* req = new disk_io_request;
   req->op = io_READ;
+
   req->data = new char[getBlockSize()]();
   req->block_number = block;
   req->done = 0;
@@ -256,10 +267,10 @@ Reads from unixFileName in blocksize chunks and pushes io_WRITE requests to the 
 */
 void IMPORT(const char* ssfsFile, const char* unixFilename){
   /* Initializing */
-  uint block_size = getBlockSize();
-  uint num_blocks = getNumBlocks();
-  uint byteOffs =  block_size + MAX_INODES*block_size + (num_blocks/block_size);
-  uint max_file_size = block_size * (1 + NUM_DIRECT_BLOCKS + (block_size/sizeof(int)) + ((block_size*block_size)/(sizeof(int)*sizeof(int)))); //max number of blocks we can hold in a single file * num of bytes in a block
+  int block_size = getBlockSize();
+  int num_blocks = getNumBlocks();
+  int byteOffs =  block_size + MAX_INODES*block_size + (num_blocks/block_size);
+  int max_file_size = block_size * (1 + NUM_DIRECT_BLOCKS + (block_size/sizeof(int)) + ((block_size*block_size)/(sizeof(int)*sizeof(int)))); //max number of blocks we can hold in a single file * num of bytes in a block
 
   int fd;
   if((fd = open(unixFilename, O_RDONLY)) < 0)
@@ -296,9 +307,13 @@ void IMPORT(const char* ssfsFile, const char* unixFilename){
   int inodeBlock = getInode(ssfsFile);
   inode* ino = getInodeFromBlockNumber(inodeBlock);
   ino->fileSize = filesize;
+
   int* indirs = new int[getBlockSize()/4]();
 
   int* doubleIndirs1 = new int[getBlockSize()/4]();
+
+  int* doubInt = 0;
+  int* indirectBlock=0;
 
   //i represents the # of blocks read at point in loop
   for(int i = 0; i < (filesize + block_size)/block_size; i++) //add block size to filesize to avoid truncating
@@ -327,29 +342,31 @@ void IMPORT(const char* ssfsFile, const char* unixFilename){
         {
           if(ino->doubleIndirect == 0)
             ino->doubleIndirect = getUnusedBlock();
-
+          if(doubInt == 0)
+            doubInt = (int*) readFromBlock(ino->doubleIndirect);
           int index = i-(NUM_DIRECT_BLOCKS + getBlockSize()/4);
           int doubIndex =  index / (getBlockSize()/4);
           int indirIndex = index % (getBlockSize()/4);
 
-          int* doubInt = (int*) readFromBlock(ino->doubleIndirect);
           if(doubInt[doubIndex] == 0)
-            doubInt[doubIndex] = getUnusedBlock();
-
-          int* indirectBlock = (int*) readFromBlock(doubInt[doubIndex]);
+            {
+              doubInt[doubIndex] = getUnusedBlock();
+            }
+          cout << doubInt[doubIndex] << endl;
+          indirectBlock = (int*) readFromBlock(doubInt[doubIndex]);
           indirectBlock[indirIndex] = getUnusedBlock();
 
           writeToBlock(indirectBlock[indirIndex], read_buffer);
 
           writeToBlock(doubInt[doubIndex],  (char*) indirectBlock);
-
-          writeToBlock(ino->doubleIndirect, (char*) doubInt);
         }
     }
 
-  if(ino->indirect!=0)
-    writeToBlock(ino->indirect, (char*) indirs);
   writeToBlock(inodeBlock, (char*) ino);
+  if(ino->indirect)
+    writeToBlock(ino->indirect, (char*) indirs);
+  if(ino->doubleIndirect)
+    writeToBlock(ino->doubleIndirect, (char*) doubInt);
 }
 
 void fillData(char* data, char c, int start, int num, int i)
@@ -383,6 +400,7 @@ void WRITE(const char* fileName, char c, int start, int num)
         {
           int block = inode->direct[i];
           if(block == 0) block = (inode->direct[i] = getUnusedBlock());
+          if(block == -1) break;
           char* data = readFromBlock(block);
           fillData(data, c, start, num, i);
 
@@ -390,9 +408,10 @@ void WRITE(const char* fileName, char c, int start, int num)
         }
       else if (i < NUM_DIRECT_BLOCKS + getBlockSize()/4)
         {
-          if(inode->indirect == 0) inode->indirect = getUnusedBlock();
+          if(inode->indirect == 0) if((inode->indirect = getUnusedBlock()) == -1) break;
+
           if(indirect == 0) indirect = (int*)readFromBlock(inode->indirect);
-          if(indirect[i-NUM_DIRECT_BLOCKS] == 0) indirect[i-NUM_DIRECT_BLOCKS] = getUnusedBlock();
+          if(indirect[i-NUM_DIRECT_BLOCKS] == 0) if((indirect[i-NUM_DIRECT_BLOCKS] = getUnusedBlock()) == -1) break;
 
           char* data = readFromBlock(indirect[i-NUM_DIRECT_BLOCKS]);
           fillData(data,c,start,num,i);
@@ -435,6 +454,7 @@ Issues read requests for blocks of fileName and pushes them into a buffer, then 
 @return void
 */
 void CAT(const char* fileName){
+
   int indirect_max_size = NUM_DIRECT_BLOCKS + getBlockSize()/sizeof(int); // # of blocks that can be refferenced by an indirect block
   int double_indirect_max_size = indirect_max_size + (getBlockSize()/sizeof(int)) * (getBlockSize()/sizeof(int));
 
@@ -446,6 +466,8 @@ void CAT(const char* fileName){
     }
   inode* inod = getInodeFromBlockNumber(ino);
 
+  READ(fileName, 0, inod->fileSize);
+  /*
   int* indirect_block = (int*) readFromBlock(inod->indirect);
   //  int* double_indirect_block = (int*) readFromBlock(inod->doubleIndirect);
 
@@ -487,6 +509,7 @@ void CAT(const char* fileName){
   //  delete[] double_indirect_block;
   delete[] indirect_block;
   delete[] inod;
+  */
 }
 
 /*
@@ -554,7 +577,7 @@ Read n bytes from file starting at given start point and send to cout
   - num      : number of bytes to read
 @return void
 */
-void READ(const char* fileName, uint start, uint num)
+void READ(const char* fileName, int start, int num)
 {
   int indirect_max_size = NUM_DIRECT_BLOCKS + getBlockSize()/sizeof(int); // # of blocks that can be refferenced by an indirect block
   int double_indirect_max_size = indirect_max_size + (getBlockSize()/sizeof(int)) * (getBlockSize()/sizeof(int));
@@ -568,7 +591,7 @@ void READ(const char* fileName, uint start, uint num)
 
   inode* inod = getInodeFromBlockNumber(ino);
   int* indirect_block = (int*) readFromBlock(inod->indirect);
-  //int* double_indirect_block = (int*) readFromBlock(inod->doubleIndirect);
+  int* double_indirect_block = (int*) readFromBlock(inod->doubleIndirect);
 
   int fs = inod->fileSize;
 
@@ -579,11 +602,13 @@ void READ(const char* fileName, uint start, uint num)
   int end_block_index = (start + num)/getBlockSize();
 
   int buffer_blocks = 1 + (end_block_num - start_block_num); //I swear there's a good reason for this seperation
+
   char* read_buffer = new char[buffer_blocks * getBlockSize()]();
-    
+
   cout << "Start block: " << start_block_num << endl;
   cout << "End block: " << end_block_num << endl;
 
+  int addrsPerBlock = getBlockSize()/4;
   int b = 0;
   for(int i = start_block_num; i <= end_block_num; i++)
   {
@@ -604,7 +629,16 @@ void READ(const char* fileName, uint start, uint num)
     }
     else
     {
-      cout << "Double indirect is for freaks" << endl;
+      int doubIndex = (i-NUM_DIRECT_BLOCKS-addrsPerBlock)/addrsPerBlock;
+      int doubIndexIntoBlock = (i-NUM_DIRECT_BLOCKS-addrsPerBlock)%addrsPerBlock;
+
+      int* currentBlock = (int*)readFromBlock(double_indirect_block[doubIndex]);
+      char* block_buffer = readFromBlock(currentBlock[doubIndexIntoBlock]);
+
+      memcpy(read_buffer + (b*getBlockSize()), block_buffer, getBlockSize());
+
+      delete[] block_buffer;
+      delete[] currentBlock;
     }
     b++;
   }
@@ -613,11 +647,13 @@ void READ(const char* fileName, uint start, uint num)
   pthread_mutex_lock(&CONSOLE_OUT_LOCK);
   cout << start % getBlockSize() << endl;
   cout << (start + num) % getBlockSize() << endl;
-  for(int i = start%getBlockSize(); i < (start + num)%getBlockSize(); i++)
+  int x = 0;
+  for(int i = start%getBlockSize(); i < (start%getBlockSize() + num); i++)
   {
     printf("%c", read_buffer[i]);
+    x++;
   }
-  printf("\n");
+  printf("\nPrinted %d characters\n",x);
   pthread_mutex_unlock(&CONSOLE_OUT_LOCK);
 
   //  delete[] double_indirect_block;
@@ -720,8 +756,8 @@ process_ops(void* file_arg)
       {
         string file1;
         char c;
-        uint start;
-        uint num;
+        int start;
+        int num;
         ss >> file1;
         ss >> c;
         ss >> start;
@@ -732,8 +768,8 @@ process_ops(void* file_arg)
     else if (command == "READ")
       {
         string file1;
-        uint start;
-        uint num;
+        int start;
+        int num;
 
         ss >> file1;
         ss >> start;
