@@ -1,3 +1,2 @@
-IMPORT sch scheduler.o
-LIST
+READ sch 0 10000
 SHUTDOWN 

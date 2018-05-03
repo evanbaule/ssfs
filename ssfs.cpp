@@ -313,15 +313,11 @@ void IMPORT(const char* ssfsFile, const char* unixFilename){
   CREATE(ssfsFile);
 
   int inodeBlock = getInode(ssfsFile);
-  inode* ino = getInodeFromBlockNumber(inodeBlock);
-  ino->fileSize = filesize;
+  inode* inode = getInodeFromBlockNumber(inodeBlock);
+  inode->fileSize = filesize;
 
-  int* indirs = new int[getBlockSize()/4]();
-
-  int* doubleIndirs1 = new int[getBlockSize()/4]();
-
-  int* doubInt = 0;
-  int* indirectBlock=0;
+  int* indirect = 0;
+  int* doubleIndirect = 0;
 
   int addrsPerBlock = getBlockSize() / 4;
   //i represents the # of blocks read at point in loop
@@ -335,45 +331,43 @@ void IMPORT(const char* ssfsFile, const char* unixFilename){
             cerr << "Error reading file" << endl;
           break;
         }
-      if(i < NUM_DIRECT_BLOCKS)
+      if(i<NUM_DIRECT_BLOCKS)
         {
-          ino->direct[i] = getUnusedBlock();
-          writeToBlock(ino->direct[i], read_buffer);
+          int block = inode->direct[i];
+          if(block == 0) block = (inode->direct[i] = getUnusedBlock());
+          if(block == -1) break;
+
+          writeToBlock(block, read_buffer);
         }
       else if (i < NUM_DIRECT_BLOCKS + getBlockSize()/4)
         {
-          if(ino->indirect == 0)
-            ino->indirect = getUnusedBlock();
-          indirs[i-NUM_DIRECT_BLOCKS] = getUnusedBlock();
-          writeToBlock(indirs[i-NUM_DIRECT_BLOCKS], read_buffer);
+          if(inode->indirect == 0) if((inode->indirect = getUnusedBlock()) == -1) break;
+
+          if(indirect == 0) indirect = (int*)readFromBlock(inode->indirect);
+          if(indirect[i-NUM_DIRECT_BLOCKS] == 0) if((indirect[i-NUM_DIRECT_BLOCKS] = getUnusedBlock()) == -1) break;
+
+          writeToBlock(indirect[i-NUM_DIRECT_BLOCKS], read_buffer);
         }
       else
         {
-          if(ino->doubleIndirect == 0) ino->doubleIndirect = getUnusedBlock();
-          if(doubInt == 0) doubInt = (int*) readFromBlock(ino->doubleIndirect);
+          if(inode->doubleIndirect == 0) inode->doubleIndirect = getUnusedBlock();
+          if(doubleIndirect == 0) doubleIndirect = (int*) readFromBlock(inode->doubleIndirect);
 
           int doubIndex = (i-NUM_DIRECT_BLOCKS-addrsPerBlock)/addrsPerBlock;
           int doubIndexIntoBlock = (i-NUM_DIRECT_BLOCKS-addrsPerBlock)%addrsPerBlock;
 
+          if(doubleIndirect[doubIndex] == 0) doubleIndirect[doubIndex] = getUnusedBlock();
+          int* currentBlock = (int*)readFromBlock(doubleIndirect[doubIndex]);
+          if(currentBlock[doubIndexIntoBlock] == 0) currentBlock[doubIndexIntoBlock] = getUnusedBlock();
 
-          if(doubInt[doubIndex] == 0) doubInt[doubIndex] = getUnusedBlock();
-
-          indirectBlock = (int*) readFromBlock(doubInt[doubIndex]);
-
-          indirectBlock[doubIndexIntoBlock] = getUnusedBlock();
-
-          writeToBlock(indirectBlock[doubIndexIntoBlock], read_buffer);
-
-          writeToBlock(doubInt[doubIndex],  (char*) indirectBlock);
-
+          writeToBlock(currentBlock[doubIndexIntoBlock], read_buffer);
+          writeToBlock(doubleIndirect[doubIndex], (char*)currentBlock);
         }
     }
+  if(indirect)writeToBlock(inode->indirect, (char*)indirect);
+  if(doubleIndirect) writeToBlock(inode->doubleIndirect, (char*)doubleIndirect);
 
-  writeToBlock(inodeBlock, (char*) ino);
-  if(ino->indirect)
-    writeToBlock(ino->indirect, (char*) indirs);
-  if(ino->doubleIndirect)
-    writeToBlock(ino->doubleIndirect, (char*) doubInt);
+  writeToBlock(inodeBlock, (char*)inode);
 }
 
 void fillData(char* data, char c, int start, int num, int i)
@@ -573,18 +567,11 @@ void READ(const char* fileName, int start, int num)
 
   char* read_buffer = new char[buffer_blocks * getBlockSize()]();
 
-  cout << "Start block: " << start_block_num << endl;
-  cout << "End block: " << end_block_num << endl;
-
   int addrsPerBlock = getBlockSize()/4;
   int b = 0;
 
-  int prevDoubIndex = 0;
   for(int i = start_block_num; i <= end_block_num; i++)
   {
-    //    int b = i / getBlockSize();
-    cout << "i: " << i << endl;
-    cout << "b: " << b << endl;
     if(i < NUM_DIRECT_BLOCKS)
     {
       char* block_buffer = readFromBlock(inod->direct[i]);
