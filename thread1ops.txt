@@ -1,3 +1,2 @@
-IMPORT sch makefile
-CAT sch
+IMPORT penises.txt penises.txt
 SHUTDOWN 
