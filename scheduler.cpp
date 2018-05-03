@@ -3,6 +3,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <vector>
 
 typedef struct disk_io_request disk_io_request;
 
@@ -12,6 +13,8 @@ void* SCH_run(void* vec)
   queue<disk_io_request*>* requests = str->requests;
   pthread_mutex_t lock = str->lock;
   int fd = str->fd;
+
+  vector<char*> vecs;
 
   while(1)
     {
@@ -43,10 +46,15 @@ void* SCH_run(void* vec)
           pthread_mutex_lock(&req->lock);
           lseek(fd, req->block_number*getBlockSize(), SEEK_SET);
           write(fd, req->data, getBlockSize());
-          delete[] req->data;
           req->done = 1;
           pthread_cond_signal(&req->waitFor);
           pthread_mutex_unlock(&req->lock);
+          vecs.push_back(req->data);
+          if(vecs.size() % 5 == 0)
+            {
+              delete[] vecs.front();
+              vecs.erase(vecs.begin());
+            }
         }
       delete req;
     }
