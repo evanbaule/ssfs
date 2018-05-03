@@ -1,2 +1,7 @@
-CAT ssfs_mkdsk
+IMPORT ssfs.hpp1 ssfs.hpp
+IMPORT ssfs.hpp2 ssfs.hpp
+IMPORT ssfs.hpp3 ssfs.hpp
+IMPORT ssfs.hpp4 ssfs.hpp
+IMPORT ssfs.hpp5 ssfs.hpp
+LIST
 SHUTDOWN

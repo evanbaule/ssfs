@@ -64,5 +64,7 @@ void* SCH_run(void* vec)
     write(fd, getINODE_MAP() + (i * getBlockSize()), getBlockSize());
   }
 
+  exit(0);
+
   return NULL;
 }

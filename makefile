@@ -16,6 +16,7 @@ comp_all: ssfs.cpp scheduler.cpp
 
 dsk: cdisk ssfs_mkdsk.o
 	g++ ssfs_mkdsk.o -o ssfs_mkdsk
+	./ssfs_mkdsk 8192 128
 
 cdisk: ssfs_mkdsk.cpp
 	g++ -c -g -Wall -std=c++11 ssfs_mkdsk.cpp -o ssfs_mkdsk.o

@@ -321,6 +321,7 @@ void IMPORT(const char* ssfsFile, const char* unixFilename){
   int* doubInt = 0;
   int* indirectBlock=0;
 
+  int addrsPerBlock = getBlockSize() / 4;
   //i represents the # of blocks read at point in loop
   for(int i = 0; i < (filesize + block_size)/block_size; i++) //add block size to filesize to avoid truncating
     {
@@ -346,23 +347,20 @@ void IMPORT(const char* ssfsFile, const char* unixFilename){
         }
       else
         {
-          if(ino->doubleIndirect == 0)
-            ino->doubleIndirect = getUnusedBlock();
-          if(doubInt == 0)
-            doubInt = (int*) readFromBlock(ino->doubleIndirect);
-          int index = i-(NUM_DIRECT_BLOCKS + getBlockSize()/4);
-          int doubIndex =  index / (getBlockSize()/4);
-          int indirIndex = index % (getBlockSize()/4);
+          if(ino->doubleIndirect == 0) ino->doubleIndirect = getUnusedBlock();
+          if(doubInt == 0) doubInt = (int*) readFromBlock(ino->doubleIndirect);
 
-          if(doubInt[doubIndex] == 0)
-            {
-              doubInt[doubIndex] = getUnusedBlock();
-            }
-          cout << doubInt[doubIndex] << endl;
+          int doubIndex = (i-NUM_DIRECT_BLOCKS-addrsPerBlock)/addrsPerBlock;
+          int doubIndexIntoBlock = (i-NUM_DIRECT_BLOCKS-addrsPerBlock)%addrsPerBlock;
+
+
+          if(doubInt[doubIndex] == 0) doubInt[doubIndex] = getUnusedBlock();
+
           indirectBlock = (int*) readFromBlock(doubInt[doubIndex]);
-          indirectBlock[indirIndex] = getUnusedBlock();
+          
+          indirectBlock[doubIndexIntoBlock] = getUnusedBlock();
 
-          writeToBlock(indirectBlock[indirIndex], read_buffer);
+          writeToBlock(indirectBlock[doubIndexIntoBlock], read_buffer);
 
           writeToBlock(doubInt[doubIndex],  (char*) indirectBlock);
         }
@@ -878,11 +876,17 @@ int main(int argc, char const *argv[])
 
     pthread_create(&SCH_thread, NULL, SCH_run, (void*) str);
 
+    for(int i =0;i<getNumBlocks()/getBlockSize();i++)
+      memcpy(FREE_MAP+i*getBlockSize(), readFromBlock(getFreeMapStart()+i), getBlockSize());
+
+    for(int i =0;i<256/getBlockSize();i++)
+      memcpy(INODE_MAP+i*getBlockSize(), readFromBlock(getInodesStart()+i), getBlockSize());
+
     for(int i = 2; i < argc;i++)
       {
         pthread_create(&op_thread[i-2], NULL, process_ops, (void*)argv[i]);
       }
 
 	}
-  while(!shut);
+  while(!0);
 }
