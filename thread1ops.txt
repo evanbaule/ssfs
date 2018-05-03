@@ -1,2 +1,3 @@
-READ sch 0 10000
+IMPORT sch makefile
+CAT sch
 SHUTDOWN 

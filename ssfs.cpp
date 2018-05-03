@@ -128,18 +128,15 @@ void writeToBlock(int block, char* data)
   req->data = data;
   req->block_number = block;
 
-  req->lock = new pthread_mutex_t;
-  req->waitFor = new pthread_cond_t;
-
-  pthread_mutex_init( req->lock, NULL);
-  pthread_cond_init( req->waitFor, NULL);
+  pthread_mutex_init( &req->lock, NULL);
+  pthread_cond_init( &req->waitFor, NULL);
 
   addRequest(req);
 
-  pthread_mutex_lock(req->lock);
+  pthread_mutex_lock(&req->lock);
   while(!req->done)
-    pthread_cond_wait(req->waitFor, req->lock);
-  pthread_mutex_unlock(req->lock);
+    pthread_cond_wait(&req->waitFor, &req->lock);
+  pthread_mutex_unlock(&req->lock);
 
 }
 
@@ -158,84 +155,17 @@ char* readFromBlock(int block)
   req->block_number = block;
   req->done = 0;
 
-  req->lock = new pthread_mutex_t;
-  req->waitFor = new pthread_cond_t;
-
-  pthread_mutex_init( req->lock, NULL);
-  pthread_cond_init( req->waitFor, NULL);
+  pthread_mutex_init( &req->lock, NULL);
+  pthread_cond_init(& req->waitFor, NULL);
 
   addRequest(req);
 
-  pthread_mutex_lock(req->lock);
+  pthread_mutex_lock(&req->lock);
   while(!req->done)
-    pthread_cond_wait(req->waitFor, req->lock);
-  pthread_mutex_unlock(req->lock);
+    pthread_cond_wait(&req->waitFor, &req->lock);
+  pthread_mutex_unlock(&req->lock);
 
   return req->data;
-}
-
-/*
-Flips the bytemap respective to a blog to indicate that the block has been either assigned or released
-@param
-  - block : block number being changed (index in map)
-  - flag  : whether we are indicating that the block is now taken or free
-@return void
-*/
-void setByteMap(int block, bool flag)
-{
-  if(block < 1+256+getBitmapSize()) return;
-
-  int blockByteLoc = 4*block/getBlockSize();
-  blockByteLoc+=(1+256);
-  block%=(getBlockSize()/4);
-
-  int* data = (int*) readFromBlock(blockByteLoc);
-  data[block] = flag;
-
-  writeToBlock(blockByteLoc, (char*) data);
-
-  delete data;
-}
-
-/*
-Look to see if a particular block is free or taken
-@param block : block number to check availability of
-@return if(block is taken)
-*/
-bool getByteMap(int block)
-{
-  if(block < 1+256+getBitmapSize()) return 1;
-
-  int blockByteLoc = block/getBlockSize();
-  blockByteLoc+=(1+256);
-  block%=(getBlockSize());
-
-  char* data = (char*) readFromBlock(blockByteLoc);
-
-  bool tmp = data[block];
-  delete[] (char*)data;
-  return tmp;
-}
-
-// ???
-int getFreeByteMapInBlock(int block)
-{
-  if(block < 1+256+getBitmapSize()) return -1;
-
-  int blockByteLoc = block/getBlockSize();
-  blockByteLoc+=(1+256);
-
-  char* data = (char*) readFromBlock(blockByteLoc);
-  int ret = -1;
-  for(int i =0;i<getBlockSize();i++)
-    {
-      if(data[i] == 0)
-        {
-          ret = i;
-          break;
-        }
-    }
-  return ret;
 }
 
 /*
@@ -493,31 +423,33 @@ void DELETE(const char* fileName)
       FREE_MAP[inod->direct[i]]=0;
     }
 
-  int* indirect_block = (int*) readFromBlock(inod->indirect);
-  FREE_MAP[inod->indirect] = 0;
   if(inod->indirect)
-  for(int i =0;i<getBlockSize()/4;i++)
     {
-      FREE_MAP[indirect_block[i]] = 0;
+      int* indirect_block = (int*) readFromBlock(inod->indirect);
+      FREE_MAP[inod->indirect] = 0;
+      for(int i =0;i<getBlockSize()/4;i++)
+        {
+          FREE_MAP[indirect_block[i]] = 0;
+        }
+      delete[] (char*) indirect_block;
     }
 
-  delete[] (char*) indirect_block;
-
-  int* dindirect_block = (int*) readFromBlock(inod->doubleIndirect);
-  cout << "dd block " << inod->doubleIndirect << endl;
   if(inod->doubleIndirect)
-  for(int i =0;i<getBlockSize()/4;i++)
     {
-      int* indir_block = (int*) readFromBlock(dindirect_block[i]);
-      for(int j=0;j<getBlockSize()/4;j++)
+      int* dindirect_block = (int*) readFromBlock(inod->doubleIndirect);
+      for(int i =0;i<getBlockSize()/4;i++)
         {
-          FREE_MAP[indir_block[j]] = 0;
+          int* indir_block = (int*) readFromBlock(dindirect_block[i]);
+          for(int j=0;j<getBlockSize()/4;j++)
+            {
+              FREE_MAP[indir_block[j]] = 0;
+            }
+          FREE_MAP[dindirect_block[i]] = 0;
+          delete[]  indir_block;
         }
-      FREE_MAP[dindirect_block[i]] = 0;
-      delete[]  indir_block;
+      delete[]  dindirect_block;
     }
   FREE_MAP[inod->doubleIndirect] = 0;
-  delete[]  dindirect_block;
 
   delete[]  inod;
 
@@ -594,6 +526,8 @@ void READ(const char* fileName, int start, int num)
       char* block_buffer = readFromBlock(currentBlock[doubIndexIntoBlock]);
 
       memcpy(read_buffer + (b*getBlockSize()), block_buffer, getBlockSize());
+
+      delete[] block_buffer;
     }
     b++;
   }
@@ -611,7 +545,7 @@ void READ(const char* fileName, int start, int num)
   printf("\nPrinted %d characters\n",x);
   pthread_mutex_unlock(&CONSOLE_OUT_LOCK);
 
-  //  delete[] double_indirect_block;
+  delete[] double_indirect_block;
   delete[] indirect_block;
   delete[] inod;
 }
