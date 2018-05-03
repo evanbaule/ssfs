@@ -1,1 +1,4 @@
-
+CREATE test2.txt test2.txt
+WRITE test2.txt W 0 200
+CAT test2.txt
+LIST
