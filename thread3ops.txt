@@ -6,6 +6,8 @@ IMPORT beer.txt beer.txt
 LIST
 MV beer.txt beers.txt
 LIST
-EXPORT beers.txt beers.txt
+CP beers.txt beers2.txt
+CP beers.txt beers3.txt
+EXPORT beers3.txt beers3.txt
 LIST
 SHUTDOWN

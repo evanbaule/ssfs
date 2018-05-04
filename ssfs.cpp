@@ -1077,7 +1077,16 @@ void EXPORT(const char* fileName, const char* unixFileName){
 //If I have time later I'll change it to just do that instead of all this, regardless itll help with CP
 void MV(const char* fileName, const char* newFileName)
 {
-  //Create new file inode, copy all original inode material into here */
+  int inode_num = getInode(fileName);
+  inode* inod = getInodeFromBlockNumber(inode_num);
+  
+  memcpy(inod->fileName, newFileName, MAX_FILENAME_SIZE);
+  
+  cout << "mv writeback" << endl;
+  writeToBlock(inode_num, (char*)inod);
+
+  /*
+  //Create new file inode, copy all original inode material into here
   CREATE(newFileName);
 
   int orig_inode_block = getInode(fileName);
@@ -1105,7 +1114,7 @@ void MV(const char* fileName, const char* newFileName)
   char* asf = new char[getBlockSize()];
   INODE_MAP[inode_location_in_map] = 0;
   writeToBlock(inode_location_in_map, asf);
- 
+  */
 }
 
 void print_inode_contents(inode* i)
