@@ -1,0 +1,4 @@
+IMPORT cat C04.bmp
+WRITE cat 0 55 10
+EXPORT cat test.bmp
+SHUTDOWN
