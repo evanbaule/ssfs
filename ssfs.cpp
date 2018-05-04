@@ -831,6 +831,8 @@ process_ops(void* file_arg)
     {
       string file1;
       string file2;
+      ss >> file1;
+      ss >> file2;
       EXPORT(file1.c_str(), file2.c_str());
     }
     else if(command == "CREATE")
@@ -1050,7 +1052,8 @@ void EXPORT(const char* fileName, const char* unixFileName){
   int ino = getInode(fileName);
   if(ino == -1)
     {
-      printf("File doesnt exist\n");
+      cout << "Failed opening from inode : " << fileName << endl;
+      printf("File doesnt exist ::: HELLO???\n");
       return;
     }
   inode* inod = getInodeFromBlockNumber(ino);

@@ -1,8 +1,11 @@
 LIST 
 IMPORT beer.txt beer.txt
+# AT beer.txt
+# CP beer.txt testout.txt
+# EXPORT testout.txt testout.txt
 LIST
-CAT beer.txt
-MV beer.txt testout.txt
-EXPORT testout.txt testout.txt
+MV beer.txt beers.txt
+LIST
+EXPORT beers.txt beers.txt
 LIST
 SHUTDOWN
