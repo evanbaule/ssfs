@@ -822,8 +822,18 @@ process_ops(void* file_arg)
     stringstream ss(linebuff);
     string command;
     ss >> command;
-
-    if(command == "CREATE")
+  
+    if(command == "#")
+    {
+      continue;
+    }
+    else if(command == "EXPORT")
+    {
+      string file1;
+      string file2;
+      EXPORT(file1.c_str(), file2.c_str());
+    }
+    else if(command == "CREATE")
       {
         string fileName;
         ss >> fileName;
@@ -978,7 +988,6 @@ void CP(const char* fileName, const char* newFileName)
   DELETE(newFileName);
   CREATE(newFileName);
 
-
   int orig_inode_block = getInode(fileName);
   inode* orig = getInodeFromBlockNumber(orig_inode_block);
 
@@ -1000,16 +1009,13 @@ void CP(const char* fileName, const char* newFileName)
           int block = inode->direct[i];
           if(block == 0) block = (inode->direct[i] = getUnusedBlock());
           if(block == -1) break;
-
           writeToBlock(block, read_buffer);
         }
       else if (i < NUM_DIRECT_BLOCKS + getBlockSize()/4)
         {
           if(inode->indirect == 0) if((inode->indirect = getUnusedBlock()) == -1) break;
-
           if(indirect == 0) indirect = (int*)readFromBlock(inode->indirect);
           if(indirect[i-NUM_DIRECT_BLOCKS] == 0) if((indirect[i-NUM_DIRECT_BLOCKS] = getUnusedBlock()) == -1) break;
-
           writeToBlock(indirect[i-NUM_DIRECT_BLOCKS], read_buffer);
         }
       else
@@ -1019,8 +1025,8 @@ void CP(const char* fileName, const char* newFileName)
 
           int doubIndex = (i-NUM_DIRECT_BLOCKS-addrsPerBlock)/addrsPerBlock;
           int doubIndexIntoBlock = (i-NUM_DIRECT_BLOCKS-addrsPerBlock)%addrsPerBlock;
-
           if(doubleIndirect[doubIndex] == 0) doubleIndirect[doubIndex] = getUnusedBlock();
+          
           int* currentBlock = (int*)readFromBlock(doubleIndirect[doubIndex]);
           if(currentBlock[doubIndexIntoBlock] == 0) currentBlock[doubIndexIntoBlock] = getUnusedBlock();
 
@@ -1032,6 +1038,34 @@ void CP(const char* fileName, const char* newFileName)
   if(doubleIndirect) writeToBlock(inode->doubleIndirect, (char*)doubleIndirect);
 
   writeToBlock(inodeBlock, (char*)inode);
+}
+
+void EXPORT(const char* fileName, const char* unixFileName){
+  int indirect_max_size = NUM_DIRECT_BLOCKS + getBlockSize()/sizeof(int); // # of blocks that can be refferenced by an indirect block
+  int double_indirect_max_size = indirect_max_size + (getBlockSize()/sizeof(int)) * (getBlockSize()/sizeof(int));
+  
+  ofstream outfile;
+  outfile.open(unixFileName);
+  
+  int ino = getInode(fileName);
+  if(ino == -1)
+    {
+      printf("File doesnt exist\n");
+      return;
+    }
+  inode* inod = getInodeFromBlockNumber(ino);
+  char* rbuff = READ_with_return(fileName, 0, inod->fileSize);
+    
+  pthread_mutex_lock(&CONSOLE_OUT_LOCK);
+  for(int i = 0; i < inod->fileSize; i++)
+  {
+    outfile << rbuff[i];
+  }
+  outfile << endl;
+  pthread_mutex_unlock(&CONSOLE_OUT_LOCK);
+
+  outfile.close();
+  DELETE(fileName);
 }
 
 //Copy the file and all of its metadata/contents to a new file location and delete the old file

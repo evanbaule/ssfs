@@ -105,6 +105,7 @@ void SHUTDOWN();
 //AUXILIARY FUNCTIONALITY
 void CP(const char* fileName, const char* newFileName);
 void MV(const char* fileName, const char* newFileName);
+void EXPORT(const char* ssfsFileName, const char* unixFileName);
 
 void shutdown();
 bool isShutdown();

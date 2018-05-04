@@ -1,7 +1,8 @@
-CREATE test1.txt
-WRITE test1.txt B 0 350
+LIST 
+IMPORT beer.txt beer.txt
 LIST
-CP test1.txt test1MV.txt
+CAT beer.txt
+MV beer.txt testout.txt
+EXPORT testout.txt testout.txt
 LIST
-CAT test1MV.txt
 SHUTDOWN
