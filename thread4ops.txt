@@ -1,0 +1,9 @@
+LIST
+WRITE test1.txt X 50 500
+CAT test1.txt
+CAT test1MV.txt
+LIST
+DELETE test1.txt
+LIST
+CAT test1MV.txt
+SHUTDOWN

@@ -1,0 +1,7 @@
+CREATE test1.txt
+WRITE test1.txt B 0 350
+LIST
+CP test1.txt test1MV.txt
+LIST
+CAT test1MV.txt
+SHUTDOWN

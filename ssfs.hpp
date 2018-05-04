@@ -75,6 +75,8 @@ int getInodeMapSize();
 int getInodesStart();
 int getUserDataStart();
 
+void print_inode_contents(inode* i);
+
 char* getSUPER();
 char* getFREE_MAP();
 char* getINODE_MAP();
@@ -95,8 +97,14 @@ void CAT(const char* fileName);
 void DELETE(const char* fileName);
 void WRITE(const char* fileName, char c, int start, int num);
 void READ(const char* fileName, int start, int num);
+char* READ_with_return(const char* fileName, int start, int num);
+void READ_file_redirect(const char* fileName, int start, int num);
 void LIST();
 void SHUTDOWN();
+
+//AUXILIARY FUNCTIONALITY
+void CP(const char* fileName, const char* newFileName);
+void MV(const char* fileName, const char* newFileName);
 
 void shutdown();
 bool isShutdown();

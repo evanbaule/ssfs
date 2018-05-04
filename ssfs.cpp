@@ -583,6 +583,185 @@ void READ(const char* fileName, int start, int num)
   delete[] inod;
 }
 
+char* READ_with_return(const char* fileName, int start, int num)
+{
+  int indirect_max_size = NUM_DIRECT_BLOCKS + getBlockSize()/sizeof(int); // # of blocks that can be refferenced by an indirect block
+  int double_indirect_max_size = indirect_max_size + (getBlockSize()/sizeof(int)) * (getBlockSize()/sizeof(int));
+
+  int ino = getInode(fileName);
+  if(ino == -1)
+  {
+    printf("File doesnt exist\n");
+    return NULL;
+  }
+
+  inode* inod = getInodeFromBlockNumber(ino);
+  int* indirect_block = (int*) readFromBlock(inod->indirect);
+  int* doubleIndirect = 0;
+
+  int fs = inod->fileSize;
+
+  int start_block_num = start/getBlockSize();
+  int start_block_index = start % getBlockSize();
+
+  int end_block_num = (start+num)/getBlockSize();
+  int end_block_index = (start + num)/getBlockSize();
+
+  int buffer_blocks = 1 + (end_block_num - start_block_num); //I swear there's a good reason for this seperation
+
+  char* read_buffer = new char[buffer_blocks * getBlockSize()]();
+
+  int addrsPerBlock = getBlockSize()/4;
+  int b = 0;
+
+  for(int i = start_block_num; i <= end_block_num; i++)
+  {
+    if(i < NUM_DIRECT_BLOCKS)
+      {
+        char* block_buffer = readFromBlock(inod->direct[i]);
+        memcpy(read_buffer + (b*getBlockSize()), block_buffer, getBlockSize());
+        delete[] block_buffer;
+      }
+    else if(i < indirect_max_size)
+      {
+        char* block_buffer = readFromBlock(indirect_block[i - NUM_DIRECT_BLOCKS]);
+        memcpy(read_buffer + (b*getBlockSize()), block_buffer, getBlockSize());
+        delete[] block_buffer;
+      }
+    else
+      {
+        int* dindirect_block = (int*) readFromBlock(inod->doubleIndirect);
+        for(int i =0;i<getBlockSize()/4;i++)
+          {
+            if(!dindirect_block[i])continue;
+            int* indir_block = (int*) readFromBlock(dindirect_block[i]);
+            for(int j=0;j<getBlockSize()/4;j++)
+              {
+                if(!indir_block[j]) continue;
+                char* block_buffer = readFromBlock(indir_block[j]);
+                memcpy(read_buffer + (b*getBlockSize()), block_buffer, getBlockSize());
+                delete[] block_buffer;
+                b++;
+              }
+            delete[]  indir_block;
+          }
+        delete[]  dindirect_block;
+        break;
+      }
+    b++;
+  }
+
+  /*
+  //mutex to console to ensure contig. output
+  pthread_mutex_lock(&CONSOLE_OUT_LOCK);
+  cout << start % getBlockSize() << endl;
+  cout << (start + num) % getBlockSize() << endl;
+  int x = 0;
+  for(int i = start%getBlockSize(); i < (start%getBlockSize() + num); i++)
+  {
+    printf("%c", read_buffer[i]);
+    x++;
+  }
+  printf("\nPrinted %d characters\n",x);
+  pthread_mutex_unlock(&CONSOLE_OUT_LOCK);
+  */
+
+  if(inod->indirect)
+    delete[] indirect_block;
+  delete[] inod;
+
+  return read_buffer;
+}
+
+void READ_file_redirect(const char* fileName, int start, int num)
+{
+  int indirect_max_size = NUM_DIRECT_BLOCKS + getBlockSize()/sizeof(int); // # of blocks that can be refferenced by an indirect block
+  int double_indirect_max_size = indirect_max_size + (getBlockSize()/sizeof(int)) * (getBlockSize()/sizeof(int));
+
+  int ino = getInode(fileName);
+  if(ino == -1)
+  {
+    printf("File doesnt exist\n");
+    return;
+  }
+
+  inode* inod = getInodeFromBlockNumber(ino);
+  int* indirect_block = (int*) readFromBlock(inod->indirect);
+  int* doubleIndirect = 0;
+
+  int fs = inod->fileSize;
+
+  int start_block_num = start/getBlockSize();
+  int start_block_index = start % getBlockSize();
+
+  int end_block_num = (start+num)/getBlockSize();
+  int end_block_index = (start + num)/getBlockSize();
+
+  int buffer_blocks = 1 + (end_block_num - start_block_num); //I swear there's a good reason for this seperation
+
+  char* read_buffer = new char[buffer_blocks * getBlockSize()]();
+
+  int addrsPerBlock = getBlockSize()/4;
+  int b = 0;
+
+  for(int i = start_block_num; i <= end_block_num; i++)
+  {
+    if(i < NUM_DIRECT_BLOCKS)
+      {
+        char* block_buffer = readFromBlock(inod->direct[i]);
+        memcpy(read_buffer + (b*getBlockSize()), block_buffer, getBlockSize());
+        delete[] block_buffer;
+      }
+    else if(i < indirect_max_size)
+      {
+        char* block_buffer = readFromBlock(indirect_block[i - NUM_DIRECT_BLOCKS]);
+        memcpy(read_buffer + (b*getBlockSize()), block_buffer, getBlockSize());
+        delete[] block_buffer;
+      }
+    else
+      {
+        int* dindirect_block = (int*) readFromBlock(inod->doubleIndirect);
+        for(int i =0;i<getBlockSize()/4;i++)
+          {
+            if(!dindirect_block[i])continue;
+            int* indir_block = (int*) readFromBlock(dindirect_block[i]);
+            for(int j=0;j<getBlockSize()/4;j++)
+              {
+                if(!indir_block[j]) continue;
+                char* block_buffer = readFromBlock(indir_block[j]);
+                memcpy(read_buffer + (b*getBlockSize()), block_buffer, getBlockSize());
+                delete[] block_buffer;
+                b++;
+              }
+            delete[]  indir_block;
+          }
+        delete[]  dindirect_block;
+        break;
+      }
+    b++;
+  }
+
+  /*
+  //mutex to console to ensure contig. output
+  pthread_mutex_lock(&CONSOLE_OUT_LOCK);
+  cout << start % getBlockSize() << endl;
+  cout << (start + num) % getBlockSize() << endl;
+  int x = 0;
+  for(int i = start%getBlockSize(); i < (start%getBlockSize() + num); i++)
+  {
+    printf("%c", read_buffer[i]);
+    x++;
+  }
+  printf("\nPrinted %d characters\n",x);
+  pthread_mutex_unlock(&CONSOLE_OUT_LOCK);
+  */
+
+  if(inod->indirect)
+    delete[] indirect_block;
+  delete[] inod;
+}
+
+
 /*
 -- SPEC --
 Closes the  DISK  file  after the Disk  Scheduler thread  has finished  servicing all pending requests, and exits the ssfs
@@ -707,9 +886,32 @@ process_ops(void* file_arg)
       {
         SHUTDOWN();
       }
+    else if(command == "MV")
+      {
+        string file1;
+        string file2;
+        ss >> file1;
+        ss >> file2;
+
+        MV(file1.c_str(), file2.c_str());
+      }
+    else if(command == "CP")
+      {
+       string file1;
+       string file2;
+       ss >> file1;
+       ss >> file2;
+
+       CP(file1.c_str(), file2.c_str());
+      }
+    else
+      {
+        printf("Unrecognized thread operation, skipping to the next operation\n");
+      }
 	}
 	return NULL;
 }
+
 
 char* getFREE_MAP(){return FREE_MAP; }
 char* getINODE_MAP(){return INODE_MAP; }
@@ -761,6 +963,127 @@ int
 getUserDataStart()
 {
   return ((int*) SUPER)[7];
+}
+
+/* AUXILIARY FUNCTIONS */
+//Copies all metadata/data blocks to new locations effectively duplicating the file
+//This does NOT just make a new inode that points to the same location
+void CP(const char* fileName, const char* newFileName)
+{
+  int block_size = getBlockSize();
+  int num_blocks = getNumBlocks();
+  int byteOffs =  block_size + MAX_INODES*block_size + (num_blocks/block_size);
+  int max_file_size = block_size * (1 + NUM_DIRECT_BLOCKS + (block_size/sizeof(int)) + ((block_size*block_size)/(sizeof(int)*sizeof(int)))); //max number of blocks we can hold in a single file * num of bytes in a block
+
+  DELETE(newFileName);
+  CREATE(newFileName);
+
+
+  int orig_inode_block = getInode(fileName);
+  inode* orig = getInodeFromBlockNumber(orig_inode_block);
+
+  int inodeBlock = getInode(newFileName);
+  inode* inode = getInodeFromBlockNumber(inodeBlock);
+  inode->fileSize = orig->fileSize;
+  int filesize = inode->fileSize;
+
+  int* indirect = 0;
+  int* doubleIndirect = 0;
+
+  int addrsPerBlock = getBlockSize() / 4;
+  //i represents the # of blocks read at point in loop
+  for(int i = 0; i < (filesize + block_size)/block_size; i++) //add block size to filesize to avoid truncating
+    {
+      char* read_buffer = READ_with_return(fileName, (i*getBlockSize()), getBlockSize());
+      if(i<NUM_DIRECT_BLOCKS)
+        {
+          int block = inode->direct[i];
+          if(block == 0) block = (inode->direct[i] = getUnusedBlock());
+          if(block == -1) break;
+
+          writeToBlock(block, read_buffer);
+        }
+      else if (i < NUM_DIRECT_BLOCKS + getBlockSize()/4)
+        {
+          if(inode->indirect == 0) if((inode->indirect = getUnusedBlock()) == -1) break;
+
+          if(indirect == 0) indirect = (int*)readFromBlock(inode->indirect);
+          if(indirect[i-NUM_DIRECT_BLOCKS] == 0) if((indirect[i-NUM_DIRECT_BLOCKS] = getUnusedBlock()) == -1) break;
+
+          writeToBlock(indirect[i-NUM_DIRECT_BLOCKS], read_buffer);
+        }
+      else
+        {
+          if(inode->doubleIndirect == 0) inode->doubleIndirect = getUnusedBlock();
+          if(doubleIndirect == 0) doubleIndirect = (int*) readFromBlock(inode->doubleIndirect);
+
+          int doubIndex = (i-NUM_DIRECT_BLOCKS-addrsPerBlock)/addrsPerBlock;
+          int doubIndexIntoBlock = (i-NUM_DIRECT_BLOCKS-addrsPerBlock)%addrsPerBlock;
+
+          if(doubleIndirect[doubIndex] == 0) doubleIndirect[doubIndex] = getUnusedBlock();
+          int* currentBlock = (int*)readFromBlock(doubleIndirect[doubIndex]);
+          if(currentBlock[doubIndexIntoBlock] == 0) currentBlock[doubIndexIntoBlock] = getUnusedBlock();
+
+          writeToBlock(currentBlock[doubIndexIntoBlock], read_buffer);
+          writeToBlock(doubleIndirect[doubIndex], (char*)currentBlock);
+        }
+    }
+  if(indirect)writeToBlock(inode->indirect, (char*)indirect);
+  if(doubleIndirect) writeToBlock(inode->doubleIndirect, (char*)doubleIndirect);
+
+  writeToBlock(inodeBlock, (char*)inode);
+}
+
+//Copy the file and all of its metadata/contents to a new file location and delete the old file
+//This really just copies the inode into a new inode since we aren't supporting directories
+//I had just finished this when I realized that this is just renaming the file and I could have just changed the name
+//If I have time later I'll change it to just do that instead of all this, regardless itll help with CP
+void MV(const char* fileName, const char* newFileName)
+{
+  //Create new file inode, copy all original inode material into here */
+  CREATE(newFileName);
+
+  int orig_inode_block = getInode(fileName);
+  inode* orig = getInodeFromBlockNumber(orig_inode_block);
+
+  int new_inode_block = getInode(newFileName);
+  inode* new_block = getInodeFromBlockNumber(new_inode_block);
+  
+  new_block->fileSize = orig->fileSize;
+  for(int i = 0; i < NUM_DIRECT_BLOCKS; i++)
+  {
+    new_block->direct[i] = orig->direct[i];
+  }
+  new_block->indirect = orig->indirect;
+  new_block->doubleIndirect = orig->doubleIndirect;
+  
+  //print_inode_contents(orig);
+  //print_inode_contents(new_block);
+
+  //Write changes to new file  
+  writeToBlock(new_inode_block, (char*)new_block);
+
+  //Remove old file
+  int inode_location_in_map = orig_inode_block - getInodesStart();
+  char* asf = new char[getBlockSize()];
+  INODE_MAP[inode_location_in_map] = 0;
+  writeToBlock(inode_location_in_map, asf);
+ 
+}
+
+void print_inode_contents(inode* i)
+{
+  pthread_mutex_lock(&CONSOLE_OUT_LOCK);
+  cout << "INODE CONTENTS:" << endl;
+  cout << i->fileName << endl << i->fileSize << " bytes" << endl;
+  cout << "Direct Blocks: " << endl;
+  for(int j = 0; j < NUM_DIRECT_BLOCKS; j++)
+  {
+    cout << i->direct[j] << endl;
+  }
+  cout << "Indirect: " << i->indirect << endl;
+  cout << "D-Indirect: " << i->doubleIndirect << endl;
+  pthread_mutex_unlock(&CONSOLE_OUT_LOCK);
 }
 
 int main(int argc, char const *argv[])
