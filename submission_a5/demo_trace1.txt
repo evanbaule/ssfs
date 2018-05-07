@@ -1,0 +1,27 @@
+# Part 1: List, Create, & Delete
+LIST
+CREATE new_file1
+CREATE new_file2
+CREATE new_file3
+LIST
+DELETE new_file1
+DELETE new_file2
+LIST
+# Part 2: Import and Cat Small, Medium, Large, and XL files
+IMPORT test_file_64 test_file_64
+IMPORT test_file_1024 test_file_1024
+IMPORT test_file_4096 test_file_4096
+IMPORT test_file_64k test_file_64k
+CAT test_file_64
+CAT test_file_1024
+CAT test_file_4096
+CAT test_file_64k
+# Part 3: Read & Write
+READ test_file_4096 1024 38
+READ test_file_4096 2048 300
+WRITE test_file_4096 X 150 19
+READ test_file_4096 125 50
+LIST
+WRITE new_file_3 $ 0  50000
+READ new_file_3 0 50000
+SHUTDOWN

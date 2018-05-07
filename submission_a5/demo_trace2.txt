@@ -1,0 +1,4 @@
+LIST
+CAT test_file_4096
+CAT test_file_64
+SHUTDOWN

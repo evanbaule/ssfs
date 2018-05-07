@@ -1,0 +1,20 @@
+# Import the image file
+IMPORT cat C04.bmp
+# 'Corrupt' the file by writing zeros into it
+WRITE cat 0 55 10
+# Export the corrupted version of the file
+EXPORT cat test.bmp
+LIST
+# Show off other functionality CP & MV
+CREATE demo_file
+WRITE demo_file X 0 44
+LIST
+CP demo_file demo_file2
+LIST
+MV demo_file2 new_file2
+LIST
+WRITE demo_file & 44 44
+LIST
+DELETE demo_file
+LIST
+SHUTDOWN

@@ -1,0 +1,9 @@
+CREATE t1f1.txt
+CREATE t1f2.txt
+CREATE t1f3.txt
+CREATE t1f4.txt
+CREATE t1f5.txt
+IMPORT ssfs.hpp ssfs.hpp
+CAT ssfs.hpp
+LIST
+SHUTDOWN

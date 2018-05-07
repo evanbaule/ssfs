@@ -1,0 +1,6 @@
+CREATE test_write1.txt
+CREATE test_write2.txt
+WRITE test_write1.txt & 0 987654321
+WRITE test_write2.txt % 0 123456789
+LIST
+SHUTDOWN
