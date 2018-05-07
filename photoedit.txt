@@ -1,4 +1,8 @@
 IMPORT cat C04.bmp
 WRITE cat 0 55 10
 EXPORT cat test.bmp
+IMPORT uglycar uglycar.bmp
+WRITE uglycar 0 55 10
+EXPORT uglycar uglycar2.bmp
+LIST
 SHUTDOWN
